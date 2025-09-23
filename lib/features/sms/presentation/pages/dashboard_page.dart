@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 
 /// Dashboard page showing overview of spending and transactions
-/// 
+///
 /// This is a placeholder page that will be expanded in future phases
 /// to show spending analytics, recent transactions, and quick actions
 class DashboardPage extends StatelessWidget {
@@ -23,43 +23,131 @@ class DashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome section
+            // Total Balance Card
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0288D1), Color(0xFF0277BD)],
+                  colors: [Color(0xFF2196F3), Color(0xFF4CAF50)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total Balance',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   const Text(
-                    'Welcome to SpendTracker',
+                    'KSh 12,450',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Track your spending from SMS messages',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 16,
-                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'M-PESA',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.grey,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Bank',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Quick stats cards
             Row(
               children: [
@@ -84,9 +172,9 @@ class DashboardPage extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Row(
               children: [
                 Expanded(
@@ -110,19 +198,19 @@ class DashboardPage extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Recent activity section
             Text(
               'Recent Activity',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(AppConstants.defaultPadding),
@@ -133,11 +221,7 @@ class DashboardPage extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.inbox,
-                    size: 48,
-                    color: Colors.grey.shade400,
-                  ),
+                  Icon(Icons.inbox, size: 48, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   Text(
                     'No transactions yet',
@@ -150,10 +234,7 @@ class DashboardPage extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Start by granting SMS permissions to track your spending',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -192,40 +273,26 @@ class DashboardPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
+              Icon(icon, color: color, size: 24),
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Icon(
-                  Icons.trending_up,
-                  color: color,
-                  size: 16,
-                ),
+                child: Icon(Icons.trending_up, color: color, size: 16),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
       ),

@@ -35,8 +35,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  # SMS handling - using mock implementation for now due to package compatibility issues
-  # sms_advanced: ^1.0.1
+  # SMS handling
+  flutter_sms_inbox: ^1.0.2
 
   # State management
   flutter_bloc: ^8.1.6

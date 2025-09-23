@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_sms_inbox/flutter_sms_inbox.dart' as sms_inbox;
 
 import '../models/sms_message_model.dart';
 
@@ -14,14 +15,15 @@ abstract class SmsDataSource {
   Future<void> stopListening();
 }
 
-/// Mock implementation of SMS data source for demonstration
+/// Real implementation of SMS data source using flutter_sms_inbox
 ///
-/// This class provides a mock implementation of SMS operations
-/// for testing and demonstration purposes
+/// This class handles all the low-level SMS operations using the
+/// flutter_sms_inbox package and permission_handler package
 class SmsDataSourceImpl implements SmsDataSource {
+  final sms_inbox.SmsQuery _smsQuery;
   StreamController<SmsMessageModel>? _smsStreamController;
 
-  SmsDataSourceImpl();
+  SmsDataSourceImpl() : _smsQuery = sms_inbox.SmsQuery();
 
   @override
   Future<bool> hasPermissions() async {
@@ -77,15 +79,23 @@ class SmsDataSourceImpl implements SmsDataSource {
         throw Exception('SMS permissions not granted');
       }
 
-      // Mock SMS messages for demonstration
-      final mockMessages = _generateMockSmsMessages(count);
+      // Get real SMS messages from device
+      final messages = await _smsQuery.querySms(
+        kinds: [sms_inbox.SmsQueryKind.inbox],
+        count: count,
+      );
 
       developer.log(
-        'Retrieved ${mockMessages.length} mock SMS messages',
+        'Retrieved ${messages.length} real SMS messages',
         name: 'SmsDataSource',
       );
 
-      return mockMessages;
+      // Convert to our model
+      final smsModels = messages
+          .map((sms) => SmsMessageModel.fromFlutterSmsInbox(sms))
+          .toList();
+
+      return smsModels;
     } catch (e) {
       developer.log('Error getting SMS messages: $e', name: 'SmsDataSource');
       rethrow;
@@ -133,80 +143,5 @@ class SmsDataSourceImpl implements SmsDataSource {
     } catch (e) {
       developer.log('Error stopping SMS listener: $e', name: 'SmsDataSource');
     }
-  }
-
-  /// Generate mock SMS messages for demonstration purposes
-  List<SmsMessageModel> _generateMockSmsMessages(int count) {
-    final mockMessages = <SmsMessageModel>[];
-    final now = DateTime.now();
-
-    final sampleMessages = [
-      {
-        'address': 'BANK-ALERT',
-        'body':
-            'Your account has been debited with Rs.2,500 for grocery shopping at SuperMart. Available balance: Rs.15,750',
-      },
-      {
-        'address': 'CREDIT-CARD',
-        'body':
-            'Transaction alert: Rs.1,200 spent at Coffee Shop on 23/09/2024. Outstanding: Rs.8,900',
-      },
-      {
-        'address': 'UPI-PAYMENT',
-        'body':
-            'UPI payment of Rs.850 to Uber successful. Transaction ID: 123456789',
-      },
-      {
-        'address': 'BANK-SMS',
-        'body':
-            'Salary credited: Rs.45,000 to your account ending 1234. Balance: Rs.60,750',
-      },
-      {
-        'address': 'WALLET-APP',
-        'body':
-            'Rs.300 added to your wallet from Bank account. Wallet balance: Rs.1,250',
-      },
-      {
-        'address': 'INSURANCE',
-        'body':
-            'Premium payment of Rs.5,000 for policy ABC123 successful via auto-debit',
-      },
-      {
-        'address': 'UTILITY-BILL',
-        'body':
-            'Electricity bill payment of Rs.1,800 successful. Next due date: 25/10/2024',
-      },
-      {
-        'address': 'SHOPPING',
-        'body':
-            'Order confirmed! Rs.3,200 paid for electronics. Delivery by 25/09/2024',
-      },
-      {
-        'address': 'FUEL-STATION',
-        'body':
-            'Fuel purchase: Rs.2,100 at Shell Petrol Pump. Card ending 5678',
-      },
-      {
-        'address': 'RESTAURANT',
-        'body':
-            'Payment of Rs.950 at Pizza Palace successful via card. Thank you!',
-      },
-    ];
-
-    for (int i = 0; i < count && i < sampleMessages.length; i++) {
-      final sample = sampleMessages[i];
-      mockMessages.add(
-        SmsMessageModel(
-          id: i + 1,
-          address: sample['address']!,
-          body: sample['body']!,
-          date: now.subtract(Duration(hours: i)).millisecondsSinceEpoch,
-          read: i < 3, // First 3 messages are read
-          type: 1, // Inbox type
-        ),
-      );
-    }
-
-    return mockMessages;
   }
 }

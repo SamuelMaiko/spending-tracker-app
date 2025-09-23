@@ -32,20 +32,16 @@ class _SmsMessagesPageState extends State<SmsMessagesPage> {
 
     // Request SMS permissions first
     smsBloc.add(const RequestSmsPermissionsEvent());
+
+    // Automatically load messages and start listening
+    smsBloc.add(const LoadSmsMessagesEvent(count: AppConstants.maxSmsToLoad));
+    smsBloc.add(const StartListeningForSmsEvent());
   }
 
   void _loadMessages() {
     context.read<SmsBloc>().add(
       const LoadSmsMessagesEvent(count: AppConstants.maxSmsToLoad),
     );
-  }
-
-  void _startListening() {
-    context.read<SmsBloc>().add(const StartListeningForSmsEvent());
-  }
-
-  void _stopListening() {
-    context.read<SmsBloc>().add(const StopListeningForSmsEvent());
   }
 
   void _refreshMessages() {
@@ -61,22 +57,6 @@ class _SmsMessagesPageState extends State<SmsMessagesPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          BlocBuilder<SmsBloc, SmsState>(
-            builder: (context, state) {
-              if (state is SmsLoaded) {
-                return IconButton(
-                  icon: Icon(state.isListening ? Icons.stop : Icons.play_arrow),
-                  onPressed: state.isListening
-                      ? _stopListening
-                      : _startListening,
-                  tooltip: state.isListening
-                      ? 'Stop Listening'
-                      : 'Start Listening',
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshMessages,
@@ -324,17 +304,6 @@ class _SmsMessagesPageState extends State<SmsMessagesPage> {
               ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
-            if (!isListening) ...[
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _startListening,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0288D1),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Start Listening'),
-              ),
-            ],
           ],
         ),
       ),
