@@ -127,17 +127,22 @@ class AppDatabase extends _$AppDatabase {
 
     // Insert default wallets
     final defaultWallets = [
-      {'name': 'M-PESA', 'transaction_sender_name': 'MPESA'},
-      {'name': 'Equity Bank', 'transaction_sender_name': 'EQUITYBANK'},
-      {'name': 'KCB Bank', 'transaction_sender_name': 'KCB'},
-      {'name': 'Co-op Bank', 'transaction_sender_name': 'COOPBANK'},
+      {'name': 'M-Pesa', 'transaction_sender_name': 'MPESA', 'amount': 1000.0},
+      {
+        'name': 'Pochi La Biashara',
+        'transaction_sender_name': 'MPESA',
+        'amount': 500.0,
+      },
+      {'name': 'M-Shwari', 'transaction_sender_name': 'MPESA', 'amount': 200.0},
+      {'name': 'Cash', 'transaction_sender_name': 'CASH', 'amount': 0.0},
     ];
 
     for (final wallet in defaultWallets) {
       await into(wallets).insert(
         WalletsCompanion.insert(
-          name: wallet['name']!,
-          transactionSenderName: wallet['transaction_sender_name']!,
+          name: wallet['name']! as String,
+          transactionSenderName: wallet['transaction_sender_name']! as String,
+          amount: Value(wallet['amount']! as double),
         ),
       );
     }

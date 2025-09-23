@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'dashboard_page.dart';
-import 'sms_messages_page.dart';
+import 'transactions_page.dart';
 import 'analytics_page.dart';
 import 'settings_page.dart';
 
 /// Main app page with bottom navigation
-/// 
+///
 /// This page contains the bottom navigation bar and manages the different
 /// tabs of the application: Dashboard, Transactions, Analytics, and Settings
 class MainAppPage extends StatefulWidget {
@@ -18,16 +18,16 @@ class MainAppPage extends StatefulWidget {
 
 class _MainAppPageState extends State<MainAppPage> {
   int _currentIndex = 0;
-  
+
   // List of pages for each tab
   late final List<Widget> _pages;
-  
+
   @override
   void initState() {
     super.initState();
     _pages = [
       const DashboardPage(),
-      const SmsMessagesPage(),
+      const TransactionsPage(),
       const AnalyticsPage(),
       const SettingsPage(),
     ];
@@ -42,10 +42,7 @@ class _MainAppPageState extends State<MainAppPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,

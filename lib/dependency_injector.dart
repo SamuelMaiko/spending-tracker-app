@@ -1,11 +1,15 @@
 import 'package:get_it/get_it.dart';
 
+import 'core/database/database_helper.dart';
+import 'core/database/repositories/wallet_repository.dart';
+import 'core/database/repositories/transaction_repository.dart';
 import 'features/sms/data/datasources/sms_datasource.dart';
 import 'features/sms/data/repositories/sms_repository_impl.dart';
 import 'features/sms/domain/repositories/sms_repository.dart';
 import 'features/sms/domain/usecases/get_sms_messages.dart';
 import 'features/sms/domain/usecases/listen_for_sms.dart';
 import 'features/sms/domain/usecases/request_sms_permissions.dart';
+import 'features/sms/domain/services/sms_transaction_parser.dart';
 import 'features/sms/presentation/bloc/sms_bloc.dart';
 
 /// Service locator instance for dependency injection
@@ -19,6 +23,26 @@ final GetIt sl = GetIt.instance;
 /// This function sets up the dependency injection container with all
 /// the required services, repositories, use cases, and BLoCs
 Future<void> initializeDependencies() async {
+  // Database
+  sl.registerLazySingleton<AppDatabase>(() => AppDatabase());
+
+  // Database repositories
+  sl.registerLazySingleton<WalletRepository>(
+    () => WalletRepository(sl<AppDatabase>()),
+  );
+
+  sl.registerLazySingleton<TransactionRepository>(
+    () => TransactionRepository(sl<AppDatabase>()),
+  );
+
+  // Services
+  sl.registerLazySingleton<SmsTransactionParser>(
+    () => SmsTransactionParser(
+      sl<WalletRepository>(),
+      sl<TransactionRepository>(),
+    ),
+  );
+
   // Data sources
   sl.registerLazySingleton<SmsDataSource>(() => SmsDataSourceImpl());
 
@@ -46,6 +70,7 @@ Future<void> initializeDependencies() async {
       requestPermissions: sl<RequestSmsPermissions>(),
       getSmsMessages: sl<GetSmsMessages>(),
       listenForSms: sl<ListenForSms>(),
+      transactionParser: sl<SmsTransactionParser>(),
     ),
   );
 }

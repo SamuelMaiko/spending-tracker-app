@@ -202,108 +202,61 @@ class AnalyticsPage extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            height: 180,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                      sections: [
-                        PieChartSectionData(
-                          color: Colors.blue,
-                          value: 35,
-                          title: '35%',
-                          radius: 50,
-                          titleStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          color: Colors.green,
-                          value: 25,
-                          title: '25%',
-                          radius: 50,
-                          titleStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          color: Colors.orange,
-                          value: 22,
-                          title: '22%',
-                          radius: 50,
-                          titleStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          color: Colors.purple,
-                          value: 12,
-                          title: '12%',
-                          radius: 50,
-                          titleStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          color: Colors.red,
-                          value: 8,
-                          title: '8%',
-                          radius: 50,
-                          titleStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+          // Pie Chart
+          Center(
+            child: SizedBox(
+              height: 200,
+              width: 200,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 60,
+                  sections: [
+                    PieChartSectionData(
+                      color: Colors.blue,
+                      value: 35,
+                      title: '',
+                      radius: 40,
                     ),
-                  ),
+                    PieChartSectionData(
+                      color: Colors.green,
+                      value: 25,
+                      title: '',
+                      radius: 40,
+                    ),
+                    PieChartSectionData(
+                      color: Colors.orange,
+                      value: 22,
+                      title: '',
+                      radius: 40,
+                    ),
+                    PieChartSectionData(
+                      color: Colors.purple,
+                      value: 12,
+                      title: '',
+                      radius: 40,
+                    ),
+                    PieChartSectionData(
+                      color: Colors.red,
+                      value: 8,
+                      title: '',
+                      radius: 40,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildLegendItem(
-                        'Transport',
-                        'KSh 450',
-                        '35%',
-                        Colors.blue,
-                      ),
-                      _buildLegendItem('Food', 'KSh 320', '25%', Colors.green),
-                      _buildLegendItem(
-                        'Bills',
-                        'KSh 280',
-                        '22%',
-                        Colors.orange,
-                      ),
-                      _buildLegendItem('Fees', 'KSh 150', '12%', Colors.purple),
-                      _buildLegendItem(
-                        'Entertainment',
-                        'KSh 100',
-                        '8%',
-                        Colors.red,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
+          ),
+          const SizedBox(height: 20),
+          // Legend
+          Column(
+            children: [
+              _buildLegendItem('Transport', 'KSh 450', '35%', Colors.blue),
+              _buildLegendItem('Food', 'KSh 320', '25%', Colors.green),
+              _buildLegendItem('Bills', 'KSh 280', '22%', Colors.orange),
+              _buildLegendItem('Fees', 'KSh 150', '12%', Colors.purple),
+              _buildLegendItem('Entertainment', 'KSh 100', '8%', Colors.red),
+            ],
           ),
         ],
       ),
@@ -317,7 +270,7 @@ class AnalyticsPage extends StatelessWidget {
     Color color,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Container(
@@ -325,38 +278,24 @@ class AnalyticsPage extends StatelessWidget {
             height: 12,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      amount,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      percentage,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ),
+          Text(
+            amount,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            percentage,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

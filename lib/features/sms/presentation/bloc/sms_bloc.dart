@@ -9,6 +9,7 @@ import '../../domain/entities/sms_message.dart';
 import '../../domain/usecases/get_sms_messages.dart';
 import '../../domain/usecases/listen_for_sms.dart';
 import '../../domain/usecases/request_sms_permissions.dart';
+import '../../domain/services/sms_transaction_parser.dart';
 import 'sms_event.dart';
 import 'sms_state.dart';
 
@@ -20,6 +21,7 @@ class SmsBloc extends Bloc<SmsEvent, SmsState> {
   final RequestSmsPermissions _requestPermissions;
   final GetSmsMessages _getSmsMessages;
   final ListenForSms _listenForSms;
+  final SmsTransactionParser _transactionParser;
 
   StreamSubscription<SmsMessage>? _smsSubscription;
   List<SmsMessage> _currentMessages = [];
@@ -28,9 +30,11 @@ class SmsBloc extends Bloc<SmsEvent, SmsState> {
     required RequestSmsPermissions requestPermissions,
     required GetSmsMessages getSmsMessages,
     required ListenForSms listenForSms,
+    required SmsTransactionParser transactionParser,
   }) : _requestPermissions = requestPermissions,
        _getSmsMessages = getSmsMessages,
        _listenForSms = listenForSms,
+       _transactionParser = transactionParser,
        super(const SmsInitial()) {
     // Register event handlers
     on<RequestSmsPermissionsEvent>(_onRequestPermissions);
@@ -94,26 +98,37 @@ class SmsBloc extends Bloc<SmsEvent, SmsState> {
     Emitter<SmsState> emit,
   ) async {
     try {
+      print('🎧🎧🎧 STARTING SMS LISTENING! 🎧🎧🎧');
       developer.log('Starting to listen for new SMS', name: 'SmsBloc');
 
       // Cancel existing subscription if any
       await _smsSubscription?.cancel();
+      print('📴 Cancelled existing subscription');
 
+      print('🔄 Getting SMS stream...');
       final smsStream = await _listenForSms(const NoParams());
+      print('✅ SMS stream obtained');
 
+      print('👂 Setting up SMS subscription...');
       _smsSubscription = smsStream.listen(
         (newMessage) {
+          print('📨 SMS STREAM RECEIVED MESSAGE!');
+          print('📱 From: ${newMessage.address}');
+          print('📝 Body: ${newMessage.body}');
           developer.log(
             'New SMS received in BLoC: ${newMessage.body}',
             name: 'SmsBloc',
           );
+          print('➡️ Adding NewSmsReceivedEvent to bloc...');
           add(NewSmsReceivedEvent(newMessage));
         },
         onError: (error) {
+          print('❌ ERROR IN SMS STREAM: $error');
           developer.log('Error in SMS stream: $error', name: 'SmsBloc');
           add(const StopListeningForSmsEvent());
         },
       );
+      print('✅ SMS subscription set up successfully');
 
       // Update current state to show listening status
       if (state is SmsLoaded) {
@@ -155,13 +170,28 @@ class SmsBloc extends Bloc<SmsEvent, SmsState> {
   void _onNewSmsReceived(NewSmsReceivedEvent event, Emitter<SmsState> emit) {
     try {
       final newMessage = event.smsMessage as SmsMessage;
+
+      print('🚨🚨🚨 NEW SMS RECEIVED IN BLOC! 🚨🚨🚨');
+      print('📱 From: ${newMessage.address}');
+      print('📝 Body: ${newMessage.body}');
+      print('📅 Date: ${newMessage.date}');
+      print('🔢 Current messages count: ${_currentMessages.length}');
+
       developer.log('Processing new SMS: ${newMessage.body}', name: 'SmsBloc');
+
+      // Parse and create transaction if message matches a wallet
+      print('🔄 Calling transaction parser...');
+      _transactionParser.parseAndCreateTransaction(newMessage);
+      print('✅ Transaction parser called');
 
       // Add new message to the beginning of the list
       final updatedMessages = [newMessage, ..._currentMessages];
       _currentMessages = updatedMessages;
 
+      print('📊 Updated messages count: ${updatedMessages.length}');
+
       // Emit new message received state
+      print('📡 Emitting SmsNewMessageReceived state...');
       emit(
         SmsNewMessageReceived(
           newMessage: newMessage,
@@ -170,8 +200,10 @@ class SmsBloc extends Bloc<SmsEvent, SmsState> {
         ),
       );
 
+      print('✅✅✅ NEW SMS FULLY PROCESSED! ✅✅✅');
       developer.log('New SMS processed and added to list', name: 'SmsBloc');
     } catch (e) {
+      print('❌❌❌ ERROR PROCESSING SMS: $e ❌❌❌');
       developer.log('Error processing new SMS: $e', name: 'SmsBloc');
     }
   }

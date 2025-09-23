@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import 'wallet_settings_page.dart';
 
 /// Settings page matching the design mockup
 ///
@@ -126,6 +127,62 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                   activeThumbColor: const Color(0xFF2196F3),
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Wallet Settings Section
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.defaultPadding,
+              ),
+              child: Text(
+                'Wallet Settings',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Manage Wallets button
+            Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: AppConstants.defaultPadding,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                  vertical: 8,
+                ),
+                leading: const Icon(
+                  Icons.account_balance_wallet,
+                  color: Color(0xFF2196F3),
+                ),
+                title: const Text(
+                  'Manage Wallets',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                subtitle: const Text(
+                  'Add, edit, and manage your wallets',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const WalletSettingsPage(),
+                    ),
+                  );
+                },
               ),
             ),
 

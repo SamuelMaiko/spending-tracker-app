@@ -31,7 +31,7 @@ enum TransactionStatus {
 }
 
 /// Database model for Transaction entity
-/// 
+///
 /// Stores individual transactions parsed from SMS
 class TransactionModel {
   final int? id;
@@ -72,10 +72,10 @@ class TransactionModel {
       description: map['description'] as String?,
       date: DateTime.parse(map['date'] as String),
       status: TransactionStatus.fromString(map['status'] as String),
-      createdAt: map['created_at'] != null 
+      createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
-      updatedAt: map['updated_at'] != null 
+      updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
     );

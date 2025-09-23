@@ -1,5 +1,5 @@
 /// Database model for Wallet entity
-/// 
+///
 /// Represents each money source (e.g., M-Pesa, Bank, Airtel)
 class WalletModel {
   final int? id;
@@ -25,10 +25,10 @@ class WalletModel {
       name: map['name'] as String,
       transactionSenderName: map['transaction_sender_name'] as String,
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
-      createdAt: map['created_at'] != null 
+      createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
-      updatedAt: map['updated_at'] != null 
+      updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
     );
@@ -58,7 +58,8 @@ class WalletModel {
     return WalletModel(
       id: id ?? this.id,
       name: name ?? this.name,
-      transactionSenderName: transactionSenderName ?? this.transactionSenderName,
+      transactionSenderName:
+          transactionSenderName ?? this.transactionSenderName,
       amount: amount ?? this.amount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
