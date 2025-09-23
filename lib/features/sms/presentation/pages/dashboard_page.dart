@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -6,6 +7,7 @@ import '../../../../core/database/repositories/wallet_repository.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../dependency_injector.dart';
+import 'transactions_page.dart';
 
 /// Dashboard page showing overview of spending and transactions
 ///
@@ -32,6 +34,7 @@ class _DashboardPageState extends State<DashboardPage> {
   int _totalCategories = 0;
   int _uncategorizedTransactions = 0;
   bool _isLoading = true;
+  bool _isBalanceVisible = true;
 
   @override
   void initState() {
@@ -122,292 +125,174 @@ class _DashboardPageState extends State<DashboardPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Greeting
-            _buildGreeting(),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Greeting
+              _buildGreeting(),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Total Balance Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2196F3), Color(0xFF4CAF50)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Balance',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Icon(
-                        Icons.visibility,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'KSh ${NumberFormat('#,##0.00').format(_totalBalance)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'This Month',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '-KSh ${NumberFormat('#,##0.00').format(_thisMonthSpending)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Last Month',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '-KSh ${NumberFormat('#,##0.00').format(_lastMonthSpending)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Categorization Card
-            if (_uncategorizedTransactions > 0)
-              GestureDetector(
-                onTap: () {
-                  // TODO: Navigate to transactions page with filter
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Navigate to uncategorized transactions'),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.orange.shade600,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '$_uncategorizedTransactions transactions need categorization',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Tap to categorize and improve your insights',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.orange.shade200),
-                        ),
-                        child: Text(
-                          'Review',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 24),
-
-            // Quick stats cards
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Total Transactions',
-                    '$_totalTransactions',
-                    Icons.receipt_long,
-                    Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Categories',
-                    '$_totalCategories',
-                    Icons.category,
-                    Colors.purple,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Recent activity section
-            Text(
-              'Recent Activity',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 16),
-
-            if (_recentTransactions.isEmpty)
+              // Total Balance Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2196F3), Color(0xFF4CAF50)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.inbox, size: 48, color: Colors.grey.shade400),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No transactions yet',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade600,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Balance',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isBalanceVisible = !_isBalanceVisible;
+                            });
+                          },
+                          child: Icon(
+                            _isBalanceVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            size: 20,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Start by granting SMS permissions to track your spending',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
-                      textAlign: TextAlign.center,
+                    Stack(
+                      children: [
+                        Text(
+                          'KSh ${NumberFormat('#,##0.00').format(_totalBalance)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (!_isBalanceVisible)
+                          Positioned.fill(
+                            child: ClipRRect(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                                child: Container(color: Colors.transparent),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'This Month',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '-KSh ${NumberFormat('#,##0.00').format(_thisMonthSpending)}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Last Month',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '-KSh ${NumberFormat('#,##0.00').format(_lastMonthSpending)}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              )
-            else
-              Column(
-                children: _recentTransactions.map((transaction) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Categorization Card
+              if (_uncategorizedTransactions > 0)
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to transactions page with uncategorized filter
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TransactionsPage(
+                          initialFilter: 'Uncategorized',
+                          isFromReviewButton: true,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -419,14 +304,12 @@ class _DashboardPageState extends State<DashboardPage> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: _getTransactionColor(
-                              transaction.type,
-                            ).withValues(alpha: 0.1),
+                            color: Colors.orange.shade100,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _getTransactionIcon(transaction.type),
-                            color: _getTransactionColor(transaction.type),
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange.shade600,
                             size: 20,
                           ),
                         ),
@@ -436,42 +319,191 @@ class _DashboardPageState extends State<DashboardPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                transaction.description ?? 'Transaction',
+                                '$_uncategorizedTransactions transactions need categorization',
                                 style: const TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black87,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                DateFormat(
-                                  'MMM dd, yyyy',
-                                ).format(transaction.date),
+                              const Text(
+                                'Tap to categorize and improve your insights',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  fontSize: 14,
+                                  color: Colors.grey,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Text(
-                          '${transaction.type == 'CREDIT' ? '+' : '-'}KSh ${NumberFormat('#,##0.00').format(transaction.amount)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _getTransactionColor(transaction.type),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Text(
+                            'Review',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange.shade700,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
+
+              const SizedBox(height: 24),
+
+              // Quick stats cards
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Total Transactions',
+                      '$_totalTransactions',
+                      Icons.receipt_long,
+                      Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Categories',
+                      '$_totalCategories',
+                      Icons.category,
+                      Colors.purple,
+                    ),
+                  ),
+                ],
               ),
-          ],
+
+              const SizedBox(height: 24),
+
+              // Recent activity section
+              Text(
+                'Recent Activity',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              if (_recentTransactions.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.inbox, size: 48, color: Colors.grey.shade400),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No transactions yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Start by granting SMS permissions to track your spending',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Column(
+                  children: _recentTransactions.map((transaction) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: _getTransactionColor(
+                                transaction.type,
+                              ).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _getTransactionIcon(transaction.type),
+                              color: _getTransactionColor(transaction.type),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getTransactionTitle(transaction),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat(
+                                    'MMM dd, yyyy',
+                                  ).format(transaction.date),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${transaction.type == 'CREDIT' ? '+' : '-'}KSh ${NumberFormat('#,##0.00').format(transaction.amount)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _getTransactionColor(transaction.type),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -580,5 +612,24 @@ class _DashboardPageState extends State<DashboardPage> {
         color: Colors.black87,
       ),
     );
+  }
+
+  String _getTransactionTitle(Transaction transaction) {
+    final description = transaction.description ?? '';
+    final type = transaction.type;
+
+    // Use transaction type and description to determine title
+    switch (type) {
+      case 'CREDIT':
+        return "Received to M-Pesa"; // "Received to M-Pesa"
+      case 'DEBIT':
+        return "Sent from M-Pesa"; // "Sent from M-Pesa"
+      case 'TRANSFER':
+        return description; // "M-Pesa to Pochi"
+      case 'WITHDRAW':
+        return description; // "Withdrawn from M-Pesa"
+      default:
+        return 'Transaction'; // Fallback
+    }
   }
 }

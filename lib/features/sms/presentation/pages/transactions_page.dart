@@ -14,7 +14,14 @@ import '../widgets/categorization_dialog.dart';
 
 /// Transactions page for displaying and managing transactions
 class TransactionsPage extends StatefulWidget {
-  const TransactionsPage({super.key});
+  final String? initialFilter;
+  final bool isFromReviewButton;
+
+  const TransactionsPage({
+    super.key,
+    this.initialFilter,
+    this.isFromReviewButton = false,
+  });
 
   @override
   State<TransactionsPage> createState() => _TransactionsPageState();
@@ -23,14 +30,27 @@ class TransactionsPage extends StatefulWidget {
 class _TransactionsPageState extends State<TransactionsPage> {
   final TransactionRepository _transactionRepository =
       sl<TransactionRepository>();
-  List<Transaction> _transactions = [];
+  final ScrollController _scrollController = ScrollController();
+  List<TransactionWithDetails> _transactions = [];
+  List<TransactionWithDetails> _filteredTransactions = [];
   bool _isLoading = true;
+  bool _showScrollToTop = false;
   Timer? _refreshTimer;
+  String _currentFilter = 'All'; // 'All' or 'Uncategorized'
 
   @override
   void initState() {
     super.initState();
+
+    // Set initial filter if provided
+    if (widget.initialFilter != null) {
+      _currentFilter = widget.initialFilter!;
+    }
+
     print('🚀 TransactionsPage initState called');
+
+    // Add scroll listener for scroll-to-top button
+    _scrollController.addListener(_scrollListener);
 
     // Use post-frame callback to ensure context is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,15 +88,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
   Future<void> _loadTransactions() async {
     try {
-      final transactions = await _transactionRepository.getAllTransactions();
+      final transactions = await _transactionRepository
+          .getTransactionsWithDetails();
       print('📊 Loaded ${transactions.length} transactions from database');
-      for (var transaction in transactions) {
+      for (var transactionWithDetails in transactions) {
         print(
-          '💰 Transaction: ${transaction.description} - KSh ${transaction.amount} (${transaction.type})',
+          '💰 Transaction: ${transactionWithDetails.transaction.description} - KSh ${transactionWithDetails.transaction.amount} (${transactionWithDetails.transaction.type})',
         );
       }
       setState(() {
         _transactions = transactions;
+        _applyFilter();
         _isLoading = false;
       });
     } catch (e) {
@@ -87,8 +109,51 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
   }
 
+  void _applyFilter() {
+    switch (_currentFilter) {
+      case 'Uncategorized':
+        _filteredTransactions = _transactions
+            .where((t) => t.transaction.categoryItemId == null)
+            .toList();
+        break;
+      case 'All':
+      default:
+        _filteredTransactions = List.from(_transactions);
+        break;
+    }
+  }
+
+  void _setFilter(String filter) {
+    setState(() {
+      _currentFilter = filter;
+      _applyFilter();
+    });
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset > 200 && !_showScrollToTop) {
+      setState(() {
+        _showScrollToTop = true;
+      });
+    } else if (_scrollController.offset <= 200 && _showScrollToTop) {
+      setState(() {
+        _showScrollToTop = false;
+      });
+    }
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
     _refreshTimer?.cancel();
     super.dispose();
   }
@@ -97,17 +162,13 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transactions'),
+        title: Text(
+          widget.isFromReviewButton
+              ? 'Uncategorized Transactions'
+              : 'Transactions',
+        ),
         backgroundColor: Colors.blue.shade600,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () {
-              _loadTransactions();
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
       ),
       body: BlocListener<SmsBloc, SmsState>(
         listener: (context, state) {
@@ -123,18 +184,51 @@ class _TransactionsPageState extends State<TransactionsPage> {
             ? const Center(child: CircularProgressIndicator())
             : _transactions.isEmpty
             ? _buildEmptyState()
-            : RefreshIndicator(
-                onRefresh: _loadTransactions,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _transactions.length,
-                  itemBuilder: (context, index) {
-                    final transaction = _transactions[index];
-                    return _buildTransactionTile(transaction);
-                  },
-                ),
+            : Column(
+                children: [
+                  // Filter buttons (hidden when coming from review button)
+                  if (!widget.isFromReviewButton)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          _buildFilterButton('All'),
+                          const SizedBox(width: 8),
+                          _buildFilterButton('Uncategorized'),
+                        ],
+                      ),
+                    ),
+                  // Transactions list
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadTransactions,
+                      child: _filteredTransactions.isEmpty
+                          ? _buildEmptyFilterState()
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: _filteredTransactions.length,
+                              itemBuilder: (context, index) {
+                                final transaction =
+                                    _filteredTransactions[index];
+                                return _buildTransactionTile(transaction);
+                              },
+                            ),
+                    ),
+                  ),
+                ],
               ),
       ),
+      floatingActionButton: _showScrollToTop
+          ? FloatingActionButton(
+              onPressed: _scrollToTop,
+              backgroundColor: Colors.blue.shade600,
+              child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -164,7 +258,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _buildTransactionTile(Transaction transaction) {
+  Widget _buildTransactionTile(TransactionWithDetails transactionWithDetails) {
+    final transaction = transactionWithDetails.transaction;
+    final category = transactionWithDetails.category;
+    final categoryItem = transactionWithDetails.categoryItem;
+
     final isIncome = transaction.type == 'CREDIT';
     final isTransfer = transaction.type == 'TRANSFER';
     final isWithdraw = transaction.type == 'WITHDRAW';
@@ -221,7 +319,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 style: TextStyle(color: Colors.orange.shade600, fontSize: 11),
               ),
             ],
-            if (transaction.categoryItemId != null) ...[
+            if (categoryItem != null && category != null) ...[
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -230,7 +328,44 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Categorized',
+                  '${category.name} > ${categoryItem.name}',
+                  style: TextStyle(
+                    color: Colors.blue.shade700,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ] else if (category != null) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  category.name,
+                  style: TextStyle(
+                    color: Colors.blue.shade700,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ] else if (_getCategoryOnlyFromDescription(
+              transaction.description,
+            )) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _extractCategoryOnlyName(transaction.description) ??
+                      'Categorized',
                   style: TextStyle(
                     color: Colors.blue.shade700,
                     fontSize: 10,
@@ -240,51 +375,26 @@ class _TransactionsPageState extends State<TransactionsPage> {
               ),
             ] else ...[
               const SizedBox(height: 4),
-              Row(
-                children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Needs categorization',
-                        style: TextStyle(
-                          color: Colors.orange.shade700,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+              GestureDetector(
+                onTap: () => _showCategorizationDialog(transaction),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade600,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Text(
+                    'Categorize',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _showCategorizationDialog(transaction),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade600,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Text(
-                        'Categorize',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ],
@@ -322,6 +432,82 @@ class _TransactionsPageState extends State<TransactionsPage> {
       default:
         return 'Transaction'; // Fallback
     }
+  }
+
+  Widget _buildFilterButton(String filter) {
+    final isSelected = _currentFilter == filter;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _setFilter(filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.shade600 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? Colors.blue.shade600 : Colors.grey.shade300,
+            ),
+          ),
+          child: Text(
+            filter,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.grey.shade700,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyFilterState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.filter_list, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            _currentFilter == 'Uncategorized'
+                ? 'No Uncategorized Transactions'
+                : 'No Transactions Found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _currentFilter == 'Uncategorized'
+                ? 'All your transactions are categorized!'
+                : 'Try changing the filter or refresh the page',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _getCategoryOnlyFromDescription(String? description) {
+    if (description == null) return false;
+    return description.startsWith('[CATEGORY_ONLY:');
+  }
+
+  String? _extractCategoryOnlyName(String? description) {
+    if (description == null || !description.startsWith('[CATEGORY_ONLY:')) {
+      return null;
+    }
+
+    final startIndex = '[CATEGORY_ONLY:'.length;
+    final endIndex = description.indexOf(']', startIndex);
+
+    if (endIndex == -1) return null;
+
+    return description.substring(startIndex, endIndex);
   }
 
   void _showCategorizationDialog(Transaction transaction) async {

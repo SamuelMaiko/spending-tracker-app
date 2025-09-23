@@ -112,6 +112,45 @@ class TransactionRepository {
         0;
   }
 
+  /// Categorize transaction with category only (no category item)
+  /// For now, we'll store the category name in the description field with a special prefix
+  /// This is a temporary solution until we add a categoryId field to the transactions table
+  Future<bool> categorizeByCategoryOnly(
+    int transactionId,
+    int categoryId,
+  ) async {
+    // Get the category name
+    final category = await (_database.select(
+      _database.categories,
+    )..where((c) => c.id.equals(categoryId))).getSingleOrNull();
+
+    if (category == null) {
+      throw Exception('Category not found');
+    }
+
+    // Get the current transaction to preserve the original description
+    final transaction = await getTransactionById(transactionId);
+    if (transaction == null) {
+      throw Exception('Transaction not found');
+    }
+
+    // Store category info in a special format in the description
+    final originalDescription = transaction.description ?? '';
+    final categoryOnlyDescription =
+        '[CATEGORY_ONLY:${category.name}]$originalDescription';
+
+    return await (_database.update(
+          _database.transactions,
+        )..where((transaction) => transaction.id.equals(transactionId))).write(
+          TransactionsCompanion(
+            description: Value(categoryOnlyDescription),
+            status: const Value('CATEGORIZED'),
+            updatedAt: Value(DateTime.now()),
+          ),
+        ) >
+        0;
+  }
+
   /// Delete transaction
   Future<int> deleteTransaction(int id) async {
     return await (_database.delete(

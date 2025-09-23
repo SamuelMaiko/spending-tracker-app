@@ -7,8 +7,24 @@ import '../../../../core/constants/app_constants.dart';
 ///
 /// This is a placeholder page that will be expanded in future phases
 /// to show spending charts, trends, and detailed analytics
-class AnalyticsPage extends StatelessWidget {
+class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
+
+  @override
+  State<AnalyticsPage> createState() => _AnalyticsPageState();
+}
+
+class _AnalyticsPageState extends State<AnalyticsPage> {
+  Future<void> _refreshAnalytics() async {
+    // Simulate loading analytics data
+    await Future.delayed(const Duration(seconds: 1));
+    // In a real app, this would reload analytics data from the database
+    if (mounted) {
+      setState(() {
+        // Refresh the UI
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,53 +81,56 @@ class AnalyticsPage extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top stats cards
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Total Spent',
-                    'KSh 1,300',
-                    'This month',
-                    Icons.trending_up,
-                    Colors.blue,
-                    isPositive: true,
+      body: RefreshIndicator(
+        onRefresh: _refreshAnalytics,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top stats cards
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      'Total Spent',
+                      'KSh 1,300',
+                      'This month',
+                      Icons.trending_up,
+                      Colors.blue,
+                      isPositive: true,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    'Fees',
-                    'KSh 110',
-                    '-20 vs last month',
-                    Icons.trending_down,
-                    Colors.green,
-                    isPositive: false,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Fees',
+                      'KSh 110',
+                      '-20 vs last month',
+                      Icons.trending_down,
+                      Colors.green,
+                      isPositive: false,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Spending by Category Pie Chart
-            _buildSpendingByCategoryChart(),
+              // Spending by Category Pie Chart
+              _buildSpendingByCategoryChart(),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Monthly Spending Trend
-            _buildMonthlySpendingTrend(),
+              // Monthly Spending Trend
+              _buildMonthlySpendingTrend(),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // This Week's Activity
-            _buildWeeklyActivity(),
-          ],
+              // This Week's Activity
+              _buildWeeklyActivity(),
+            ],
+          ),
         ),
       ),
     );
