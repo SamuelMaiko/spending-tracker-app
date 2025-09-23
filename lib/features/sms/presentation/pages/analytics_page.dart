@@ -86,9 +86,9 @@ class AnalyticsPage extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
-                    'Transaction Fees',
+                    'Fees',
                     'KSh 110',
-                    '-20 from last month',
+                    '-20 vs last month',
                     Icons.trending_down,
                     Colors.green,
                     isPositive: false,
@@ -203,7 +203,7 @@ class AnalyticsPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 200,
+            height: 180,
             child: Row(
               children: [
                 Expanded(

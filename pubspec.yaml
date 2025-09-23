@@ -48,11 +48,20 @@ dependencies:
   # Dependency injection
   get_it: ^7.7.0
 
+  # Database ORM
+  drift: ^2.16.0
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.2
+  path: ^1.9.0
+
   # UI components
   flutter_svg: ^2.0.10+1
 
   # Charts
   fl_chart: ^0.68.0
+
+  # Internationalization
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +73,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+
+  # Drift ORM code generation
+  drift_dev: ^2.16.0
+  build_runner: ^2.4.9
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

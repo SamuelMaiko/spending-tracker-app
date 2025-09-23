@@ -6,7 +6,7 @@ import '../../domain/entities/sms_message.dart';
 import '../bloc/sms_bloc.dart';
 import '../bloc/sms_event.dart';
 import '../bloc/sms_state.dart';
-import '../widgets/sms_message_tile.dart';
+import '../widgets/transaction_tile.dart';
 
 /// Main page for displaying SMS messages
 ///
@@ -262,13 +262,21 @@ class _SmsMessagesPageState extends State<SmsMessagesPage> {
               _refreshMessages();
             },
             child: ListView.builder(
-              padding: const EdgeInsets.all(AppConstants.smallPadding),
-              itemCount: messages.length,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: _getSampleTransactions().length,
               itemBuilder: (context, index) {
-                final message = messages[index];
-                return SmsMessageTile(
-                  message: message,
-                  isNew: index == 0 && isListening,
+                final transaction = _getSampleTransactions()[index];
+                return TransactionTile(
+                  title: transaction.title,
+                  subtitle: transaction.subtitle,
+                  date: transaction.date,
+                  amount: transaction.amount,
+                  isIncome: transaction.isIncome,
+                  category: transaction.category,
+                  needsCategorization: transaction.needsCategorization,
+                  onCategorize: transaction.needsCategorization
+                      ? () => _showCategorizationDialog(context, transaction)
+                      : null,
                 );
               },
             ),
@@ -349,5 +357,201 @@ class _SmsMessagesPageState extends State<SmsMessagesPage> {
 
   Widget _buildEmptyWidget() {
     return const Center(child: Text('Welcome to SpendTracker SMS'));
+  }
+
+  /// Get sample transactions for display
+  List<SampleTransaction> _getSampleTransactions() {
+    return SampleTransaction.getSampleTransactions();
+  }
+
+  /// Show categorization dialog
+  void _showCategorizationDialog(
+    BuildContext context,
+    SampleTransaction transaction,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) =>
+          _buildCategorizationBottomSheet(context, transaction),
+    );
+  }
+
+  /// Build categorization bottom sheet
+  Widget _buildCategorizationBottomSheet(
+    BuildContext context,
+    SampleTransaction transaction,
+  ) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Categorize Transaction',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+
+          // Transaction details
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'KSh ${transaction.amount.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.red.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${transaction.date.day}-${transaction.date.month.toString().padLeft(2, '0')}-${transaction.date.year.toString().substring(2)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Categories grid
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 2.5,
+                children: [
+                  _buildCategoryButton('Transport', Icons.directions_car),
+                  _buildCategoryButton('Food', Icons.restaurant),
+                  _buildCategoryButton('Bills', Icons.receipt_long),
+                  _buildCategoryButton('Fees', Icons.account_balance),
+                  _buildCategoryButton('Savings', Icons.savings),
+                  _buildCategoryButton('Income', Icons.trending_up),
+                  _buildCategoryButton('Shopping', Icons.shopping_bag),
+                  _buildCategoryButton('Entertainment', Icons.movie),
+                ],
+              ),
+            ),
+          ),
+
+          // Add new category button
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: OutlinedButton.icon(
+              onPressed: () => _showAddCategoryDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Add New Category'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 20,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build category button
+  Widget _buildCategoryButton(String category, IconData icon) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Categorized as $category')));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: Colors.blue.shade600),
+            const SizedBox(width: 8),
+            Text(
+              category,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show add category dialog
+  void _showAddCategoryDialog(BuildContext context) {
+    Navigator.pop(context); // Close bottom sheet first
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Category'),
+        content: const TextField(
+          decoration: InputDecoration(
+            hintText: 'Category name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Category added successfully')),
+              );
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
   }
 }
