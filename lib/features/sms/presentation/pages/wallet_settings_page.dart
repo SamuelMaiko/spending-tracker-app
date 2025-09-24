@@ -205,7 +205,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
           : RefreshIndicator(
               onRefresh: _loadWallets,
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 itemCount: _wallets.length,
                 itemBuilder: (context, index) {
                   final wallet = _wallets[index];

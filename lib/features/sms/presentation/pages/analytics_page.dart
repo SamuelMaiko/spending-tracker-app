@@ -157,7 +157,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 t.date.isBefore(
                   endOfSelectedMonth.add(const Duration(days: 1)),
                 ) &&
-                t.type == 'DEBIT',
+                (t.type == 'DEBIT'),
+          )
+          .toList();
+      // Calculate this month's spending (DEBIT transactions)
+      final selectedMonthTransactions2 = allTransactions
+          .where(
+            (t) =>
+                t.date.isAfter(
+                  startOfSelectedMonth.subtract(const Duration(days: 1)),
+                ) &&
+                t.date.isBefore(
+                  endOfSelectedMonth.add(const Duration(days: 1)),
+                ) &&
+                (t.type == 'DEBIT' || t.type == 'TRANSFER'),
           )
           .toList();
 
@@ -165,7 +178,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         0.0,
         (sum, t) => sum + t.amount,
       );
-      _transactionFeesThisMonth = selectedMonthTransactions.fold(
+      _transactionFeesThisMonth = selectedMonthTransactions2.fold(
         0.0,
         (sum, t) => sum + t.transactionCost,
       );
@@ -184,11 +197,25 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           )
           .toList();
 
+      // Calculate last month's spending (DEBIT transactions)
+      final lastMonthTransactions2 = allTransactions
+          .where(
+            (t) =>
+                t.date.isAfter(
+                  startOfPreviousMonth.subtract(const Duration(days: 1)),
+                ) &&
+                t.date.isBefore(
+                  endOfPreviousMonth.add(const Duration(days: 1)),
+                ) &&
+                (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+          )
+          .toList();
+
       _totalSpentLastMonth = lastMonthTransactions.fold(
         0.0,
         (sum, t) => sum + t.amount,
       );
-      _transactionFeesLastMonth = lastMonthTransactions.fold(
+      _transactionFeesLastMonth = lastMonthTransactions2.fold(
         0.0,
         (sum, t) => sum + t.transactionCost,
       );

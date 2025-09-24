@@ -156,10 +156,10 @@ class AppDatabase extends _$AppDatabase {
 
   /// Clear all data (for testing purposes)
   Future<void> clearAllData() async {
-    await delete(transactions).go();
-    await delete(categoryItems).go();
-    await delete(categories).go();
-    await delete(wallets).go();
+    // await delete(transactions).go();
+    // await delete(categoryItems).go();
+    // await delete(categories).go();
+    // await delete(wallets).go();
 
     // Re-insert default data
     await _insertDefaultData();

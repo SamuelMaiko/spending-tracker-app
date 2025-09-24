@@ -176,7 +176,7 @@ class TransactionRepository {
       // Adjust wallet balance based on cost difference
       // For DEBIT transactions, increase cost means decrease balance more
       // For CREDIT transactions, transaction costs don't typically apply
-      if (transaction.type == 'DEBIT') {
+      if (transaction.type == 'DEBIT' || transaction.type == 'TRANSFER') {
         final walletRepository = WalletRepository(_database);
         final wallet = await (_database.select(
           _database.wallets,
