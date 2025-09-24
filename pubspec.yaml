@@ -36,8 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # SMS handling
-  easy_sms_receiver: ^0.0.2
-  flutter_background_service: ^5.0.10
+  another_telephony: ^0.4.1
 
   # State management
   flutter_bloc: ^8.1.6

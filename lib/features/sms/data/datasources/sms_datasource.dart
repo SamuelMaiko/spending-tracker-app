@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:permission_handler/permission_handler.dart';
-import 'package:easy_sms_receiver/easy_sms_receiver.dart';
+import 'package:another_telephony/telephony.dart';
 
 import '../models/sms_message_model.dart';
 
@@ -15,16 +15,16 @@ abstract class SmsDataSource {
   Future<void> stopListening();
 }
 
-/// Real implementation of SMS data source using easy_sms_receiver
+/// Real implementation of SMS data source using telephony package
 ///
 /// This class handles all the low-level SMS operations using the
-/// easy_sms_receiver package and permission_handler package
+/// telephony package and permission_handler package
 class SmsDataSourceImpl implements SmsDataSource {
-  final EasySmsReceiver _easySmsReceiver;
+  final Telephony _telephony;
   StreamController<SmsMessageModel>? _smsStreamController;
   bool _isListening = false;
 
-  SmsDataSourceImpl() : _easySmsReceiver = EasySmsReceiver.instance;
+  SmsDataSourceImpl() : _telephony = Telephony.instance;
 
   @override
   Future<bool> hasPermissions() async {
@@ -80,15 +80,31 @@ class SmsDataSourceImpl implements SmsDataSource {
         throw Exception('SMS permissions not granted');
       }
 
-      // Note: easy_sms_receiver doesn't provide a method to get historical SMS
-      // This method will return empty list as we're focusing on real-time SMS
-      // For historical SMS, you would need to use a different approach or package
+      // Get inbox SMS messages using telephony package
+      final smsMessages = await _telephony.getInboxSms(
+        columns: [
+          SmsColumn.ID,
+          SmsColumn.ADDRESS,
+          SmsColumn.BODY,
+          SmsColumn.DATE,
+          SmsColumn.READ,
+          SmsColumn.TYPE,
+        ],
+        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
+      );
+
+      // Convert to our model and limit to requested count
+      final result = smsMessages
+          .take(count)
+          .map((sms) => SmsMessageModel.fromTelephony(sms))
+          .toList();
+
       developer.log(
-        'easy_sms_receiver does not support historical SMS retrieval',
+        'Retrieved ${result.length} SMS messages from telephony',
         name: 'SmsDataSource',
       );
 
-      return <SmsMessageModel>[];
+      return result;
     } catch (e) {
       developer.log('Error getting SMS messages: $e', name: 'SmsDataSource');
       rethrow;
@@ -99,38 +115,25 @@ class SmsDataSourceImpl implements SmsDataSource {
   Stream<SmsMessageModel> listenForNewSms() {
     try {
       developer.log(
-        'Starting to listen for new SMS messages with easy_sms_receiver',
+        '⚠️ SmsDataSource.listenForNewSms() called - but SMS listening is now handled by TelephonySmsService',
         name: 'SmsDataSource',
       );
 
       // Create a new stream controller if it doesn't exist
       _smsStreamController ??= StreamController<SmsMessageModel>.broadcast();
 
-      // Start listening for incoming SMS using easy_sms_receiver
-      if (!_isListening) {
-        _easySmsReceiver.listenIncomingSms(
-          onNewMessage: (message) {
-            developer.log(
-              'New SMS received: ${message.body}',
-              name: 'SmsDataSource',
-            );
-
-            // Convert to our model and add to stream
-            final smsModel = SmsMessageModel.fromEasySmsReceiver(message);
-            _smsStreamController?.add(smsModel);
-          },
-        );
-        _isListening = true;
-      }
+      // NOTE: SMS listening is now handled by TelephonySmsService in main.dart
+      // This method returns an empty stream to maintain compatibility
+      // Real SMS processing happens in TelephonySmsService -> SmsTransactionParser
 
       developer.log(
-        'SMS listening started (real-time mode)',
+        '⚠️ Returning empty stream - SMS listening handled by TelephonySmsService',
         name: 'SmsDataSource',
       );
 
       return _smsStreamController!.stream;
     } catch (e) {
-      developer.log('Error listening for SMS: $e', name: 'SmsDataSource');
+      developer.log('Error in listenForNewSms: $e', name: 'SmsDataSource');
       rethrow;
     }
   }
@@ -142,7 +145,8 @@ class SmsDataSourceImpl implements SmsDataSource {
 
       // Stop the SMS receiver
       if (_isListening) {
-        _easySmsReceiver.stopListenIncomingSms();
+        // Note: telephony package doesn't have explicit stop method
+        // The listener is automatically managed by the system
         _isListening = false;
       }
 

@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'core/constants/app_constants.dart';
-import 'core/services/background_sms_service.dart';
+import 'core/services/telephony_sms_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/navigation_service.dart';
 import 'dependency_injector.dart';
@@ -23,13 +23,16 @@ void main() async {
   // Initialize notification service
   await NotificationService.initialize();
 
-  // Initialize notification service only for now
-  // Background service will be started manually from settings if needed
+  // Initialize telephony SMS service for background SMS handling
   try {
-    // Request SMS permissions
-    await Permission.sms.request();
+    await TelephonySmsService.initialize();
+    final permissionsGranted = await TelephonySmsService.requestPermissions();
+
+    if (permissionsGranted) {
+      await TelephonySmsService.startListening();
+    }
   } catch (e) {
-    print('Error requesting SMS permissions: $e');
+    print('Error initializing telephony SMS service: $e');
   }
 
   runApp(const SpendTrackerApp());

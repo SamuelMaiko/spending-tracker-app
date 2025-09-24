@@ -1,4 +1,4 @@
-import 'package:easy_sms_receiver/easy_sms_receiver.dart' as easy_sms;
+import 'package:another_telephony/telephony.dart' as telephony;
 import '../../domain/entities/sms_message.dart';
 
 /// Data model for SMS messages that extends the domain entity
@@ -19,14 +19,14 @@ class SmsMessageModel extends SmsMessage {
   ///
   /// This factory constructor converts the external library's SMS message
   /// format to our internal domain model
-  factory SmsMessageModel.fromEasySmsReceiver(easy_sms.SmsMessage smsMessage) {
+  factory SmsMessageModel.fromTelephony(telephony.SmsMessage smsMessage) {
     return SmsMessageModel(
-      id: DateTime.now().millisecondsSinceEpoch, // Generate ID from timestamp
+      id: smsMessage.id ?? DateTime.now().millisecondsSinceEpoch,
       address: smsMessage.address ?? 'Unknown',
       body: smsMessage.body ?? '',
-      date: DateTime.now().millisecondsSinceEpoch,
-      read: false, // New messages are unread
-      type: 1, // Default to inbox type
+      date: smsMessage.date ?? DateTime.now().millisecondsSinceEpoch,
+      read: smsMessage.read ?? false,
+      type: smsMessage.type?.index ?? 1,
     );
   }
 
