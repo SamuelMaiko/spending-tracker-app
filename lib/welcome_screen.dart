@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'core/constants/app_constants.dart';
@@ -101,122 +102,89 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          // Beautiful gradient background matching the design
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF4FC3F7), // Light blue
-              Color(0xFF29B6F6), // Medium blue
-              Color(0xFF0288D1), // Darker blue
-              Color(0xFF0277BD), // Even darker blue
-            ],
-            stops: [0.0, 0.3, 0.7, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 2),
-
-              // Animated logo section
-              AnimatedBuilder(
-                animation: _logoController,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _logoScaleAnimation.value,
-                    child: Opacity(
-                      opacity: _logoOpacityAnimation.value,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.account_balance_wallet,
-                          size: 60,
-                          color: Color(0xFF0288D1),
-                        ),
-                      ),
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated logo
+            AnimatedBuilder(
+              animation: _logoController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _logoScaleAnimation.value,
+                  child: Opacity(
+                    opacity: _logoOpacityAnimation.value,
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.contain,
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
+            ),
 
-              const SizedBox(height: 32),
+            // const SizedBox(height: 32),
 
-              // Animated text section
-              AnimatedBuilder(
-                animation: _textController,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _textOpacityAnimation.value,
-                    child: Column(
-                      children: [
-                        Text(
-                          AppConstants.appName,
-                          style: Theme.of(context).textTheme.headlineLarge
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 32,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          AppConstants.appSubtitle,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 18,
-                              ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+            // // Animated text
+            // AnimatedBuilder(
+            //   animation: _textController,
+            //   builder: (context, child) {
+            //     return Opacity(
+            //       opacity: _textOpacityAnimation.value,
+            //       child: Text(
+            //         'Spending Tracker',
+            //         style: TextStyle(
+            //           fontSize: 32,
+            //           fontWeight: FontWeight.w700,
+            //           color: Colors.grey.shade800,
+            //           letterSpacing: 1.2,
+            //         ),
+            //       ),
+            //     );
+            //   },
+            // ),
 
-              const Spacer(flex: 2),
+            // const SizedBox(height: 60),
 
-              // Animated loading indicator
-              AnimatedBuilder(
-                animation: _loadingController,
-                builder: (context, child) {
-                  return Transform.rotate(
-                    angle: _loadingRotationAnimation.value * 2 * 3.14159,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 3,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const SizedBox(width: 8, height: 8),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            // Simple loading indicator
+            // AnimatedBuilder(
+            //   animation: _loadingController,
+            //   builder: (context, child) {
+            //     return Row(
+            //       mainAxisAlignment: MainAxisAlignment.center,
+            //       children: List.generate(3, (index) {
+            //         final delay = index * 0.3;
+            //         final animValue =
+            //             (_loadingRotationAnimation.value + delay) % 1.0;
+            //         final scale =
+            //             0.5 + (0.5 * math.sin(animValue * 2 * 3.14159));
 
-              const SizedBox(height: 48),
-            ],
-          ),
+            //         return Container(
+            //           margin: const EdgeInsets.symmetric(horizontal: 4),
+            //           child: Transform.scale(
+            //             scale: scale,
+            //             child: Container(
+            //               width: 8,
+            //               height: 8,
+            //               decoration: BoxDecoration(
+            //                 color: Colors.grey.shade400,
+            //                 shape: BoxShape.circle,
+            //               ),
+            //             ),
+            //           ),
+            //         );
+            //       }),
+            //     );
+            //   },
+            // ),
+          ],
         ),
       ),
     );

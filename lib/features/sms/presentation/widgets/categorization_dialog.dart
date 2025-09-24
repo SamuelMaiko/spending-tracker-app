@@ -159,18 +159,9 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
           // Header
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                const Text(
-                  'Categorize Transaction',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
+            child: const Text(
+              'Categorize Transaction',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ),
 

@@ -37,7 +37,7 @@ class _DashboardPageState extends State<DashboardPage>
   int _totalCategories = 0;
   int _uncategorizedTransactions = 0;
   bool _isLoading = true;
-  bool _isBalanceVisible = true;
+  bool _isBalanceVisible = false;
 
   @override
   void initState() {
@@ -231,7 +231,7 @@ class _DashboardPageState extends State<DashboardPage>
                           Positioned.fill(
                             child: ClipRRect(
                               child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                                 child: Container(color: Colors.transparent),
                               ),
                             ),

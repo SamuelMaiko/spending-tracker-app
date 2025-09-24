@@ -47,77 +47,137 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
       text: wallet.amount.toStringAsFixed(2),
     );
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit ${wallet.name} Balance'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: balanceController,
-              decoration: const InputDecoration(
-                labelText: 'Balance',
-                prefixText: 'KSh ',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-              ],
-            ),
-          ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final balanceText = balanceController.text.trim();
-              if (balanceText.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a balance')),
-                );
-                return;
-              }
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-              final balance = double.tryParse(balanceText);
-              if (balance == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid balance')),
-                );
-                return;
-              }
+                // Title
+                Text(
+                  'Edit ${wallet.name} Balance',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-              try {
-                final updatedWallet = wallet.copyWith(amount: balance);
-                await _walletRepository.updateWallet(updatedWallet);
-                if (mounted) {
-                  Navigator.pop(context);
-                  await _loadWallets();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${wallet.name} balance updated successfully',
+                // Balance input field
+                TextField(
+                  controller: balanceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Balance',
+                    prefixText: 'KSh ',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}'),
+                    ),
+                  ],
+                  autofocus: true,
+                ),
+                const SizedBox(height: 20),
+
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
                       ),
                     ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error updating balance: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Update'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final balanceText = balanceController.text.trim();
+                          if (balanceText.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a balance'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final balance = double.tryParse(balanceText);
+                          if (balance == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a valid balance'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          try {
+                            final updatedWallet = wallet.copyWith(
+                              amount: balance,
+                            );
+                            await _walletRepository.updateWallet(updatedWallet);
+                            if (mounted) {
+                              Navigator.pop(context);
+                              await _loadWallets();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${wallet.name} balance updated successfully',
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error updating balance: $e'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2196F3),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Update'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

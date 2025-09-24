@@ -96,6 +96,56 @@ class TransactionRepository {
     return await _database.update(_database.transactions).replace(transaction);
   }
 
+  /// Update transaction with wallet balance adjustment
+  Future<bool> updateTransactionWithBalanceAdjustment(
+    Transaction originalTransaction,
+    Transaction updatedTransaction,
+  ) async {
+    // Calculate the difference in amount
+    final amountDifference =
+        updatedTransaction.amount - originalTransaction.amount;
+
+    // Update the transaction first
+    final success = await updateTransaction(updatedTransaction);
+
+    if (success && amountDifference != 0) {
+      // Adjust wallet balance based on transaction type and amount difference
+      final walletRepository = WalletRepository(_database);
+      final wallet =
+          await (_database.select(_database.wallets)
+                ..where((w) => w.id.equals(originalTransaction.walletId)))
+              .getSingleOrNull();
+
+      if (wallet != null) {
+        double balanceAdjustment = 0.0;
+
+        // For DEBIT transactions: increase in amount = decrease in balance
+        // For CREDIT transactions: increase in amount = increase in balance
+        // For TRANSFER transactions: no balance change (it's between wallets)
+        switch (originalTransaction.type) {
+          case 'DEBIT':
+            balanceAdjustment = -amountDifference; // Opposite of amount change
+            break;
+          case 'CREDIT':
+            balanceAdjustment = amountDifference; // Same as amount change
+            break;
+          case 'TRANSFER':
+            // For transfers, we might need more complex logic
+            // For now, we'll skip balance adjustment for transfers
+            balanceAdjustment = 0.0;
+            break;
+        }
+
+        if (balanceAdjustment != 0) {
+          final newBalance = wallet.amount + balanceAdjustment;
+          await walletRepository.updateWalletBalance(wallet.id, newBalance);
+        }
+      }
+    }
+
+    return success;
+  }
+
   /// Update transaction cost and adjust wallet balances accordingly
   Future<bool> updateTransactionCost(
     int transactionId,

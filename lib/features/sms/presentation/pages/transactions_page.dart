@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' as drift;
 
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
 
 import '../../../../dependency_injector.dart';
 import '../bloc/sms_bloc.dart';
+import '../widgets/transaction_details_sheet.dart';
 import '../bloc/sms_event.dart';
 import '../bloc/sms_state.dart';
 import '../widgets/categorization_dialog.dart';
@@ -417,125 +419,138 @@ class _TransactionsPageState extends State<TransactionsPage> {
           width: 1,
         ),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(
-          backgroundColor: backgroundColor,
-          child: Icon(icon, color: iconColor),
-        ),
-        title: Text(
-          _getTransactionTitle(transaction),
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              DateFormat('MMM dd, yyyy • hh:mm a').format(date),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-            if (transaction.transactionCost > 0) ...[
-              const SizedBox(height: 2),
+      child: GestureDetector(
+        onLongPress: () =>
+            _showTransactionDetails(transaction, categoryItem, category),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: CircleAvatar(
+            backgroundColor: backgroundColor,
+            child: Icon(icon, color: iconColor),
+          ),
+          title: Text(
+            _getTransactionTitle(transaction),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
               Text(
-                'Fee: KSh ${transaction.transactionCost.toStringAsFixed(2)}',
-                style: TextStyle(color: Colors.orange.shade600, fontSize: 11),
+                DateFormat('MMM dd, yyyy • hh:mm a').format(date),
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
-            ],
-            if (categoryItem != null && category != null) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(12),
+              if (transaction.transactionCost > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'Fee: KSh ${transaction.transactionCost.toStringAsFixed(2)}',
+                  style: TextStyle(color: Colors.orange.shade600, fontSize: 11),
                 ),
-                child: Text(
-                  '${category.name} > ${categoryItem.name}',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ] else if (category != null &&
-                transaction.categoryItemId == null) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  category.name,
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ] else if (_getCategoryOnlyFromDescription(
-              transaction.description,
-            )) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _extractCategoryOnlyName(transaction.description) ??
-                      'Categorized',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ] else if (!isTransfer &&
-                (transaction.categoryItemId == null ||
-                    (transaction.categoryItemId != null &&
-                        categoryItem == null))) ...[
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: () => _showCategorizationDialog(transaction),
-                child: Container(
+              ],
+              if (categoryItem != null && category != null) ...[
+                const SizedBox(height: 4),
+                Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
+                    horizontal: 8,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade600,
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    'Categorize',
+                  child: Text(
+                    '${category.name} > ${categoryItem.name}',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.blue.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-              ),
+              ] else if (category != null &&
+                  transaction.categoryItemId == null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    category.name,
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ] else if (_getCategoryOnlyFromDescription(
+                transaction.description,
+              )) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _extractCategoryOnlyName(transaction.description) ??
+                        'Categorized',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ] else if (!isTransfer &&
+                  (transaction.categoryItemId == null ||
+                      (transaction.categoryItemId != null &&
+                          categoryItem == null))) ...[
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () => _showCategorizationDialog(transaction),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade600,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      'Categorize',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-        trailing: Text(
-          '${isTransfer
-              ? ''
-              : isIncome
-              ? '+'
-              : '-'}KSh ${NumberFormat('#,##0.00').format(amount)}',
-          style: TextStyle(
-            color: iconColor,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
+          ),
+          trailing: Text(
+            '${isTransfer
+                ? ''
+                : isIncome
+                ? '+'
+                : '-'}KSh ${NumberFormat('#,##0.00').format(amount)}',
+            style: TextStyle(
+              color: iconColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
           ),
         ),
       ),
@@ -621,5 +636,245 @@ class _TransactionsPageState extends State<TransactionsPage> {
     if (result == true) {
       _loadTransactions();
     }
+  }
+
+  void _showTransactionDetails(
+    Transaction transaction,
+    CategoryItem? categoryItem,
+    Category? category,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TransactionDetailsSheet(
+        transaction: transaction,
+        categoryItem: categoryItem,
+        category: category,
+        onEdit: () {
+          Navigator.pop(context);
+          _showEditTransactionDialog(transaction);
+        },
+        onDelete: () {
+          Navigator.pop(context);
+          _showDeleteTransactionDialog(transaction);
+        },
+      ),
+    );
+  }
+
+  void _showEditTransactionDialog(Transaction transaction) {
+    final TextEditingController amountController = TextEditingController(
+      text: transaction.amount.toStringAsFixed(2),
+    );
+    final TextEditingController costController = TextEditingController(
+      text: transaction.transactionCost.toStringAsFixed(2),
+    );
+    final TextEditingController descriptionController = TextEditingController(
+      text: transaction.description ?? '',
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                const Text(
+                  'Edit Transaction',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 20),
+
+                // Amount field
+                TextField(
+                  controller: amountController,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount',
+                    prefixText: 'KSh ',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Transaction cost field
+                TextField(
+                  controller: costController,
+                  decoration: const InputDecoration(
+                    labelText: 'Transaction Cost',
+                    prefixText: 'KSh ',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Description field
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final amount = double.tryParse(amountController.text);
+                          final cost = double.tryParse(costController.text);
+
+                          if (amount != null && cost != null) {
+                            try {
+                              // Update transaction cost if changed
+                              if (cost != transaction.transactionCost) {
+                                await _transactionRepository
+                                    .updateTransactionCost(
+                                      transaction.id,
+                                      cost,
+                                    );
+                              }
+
+                              // Update other fields if needed
+                              if (amount != transaction.amount ||
+                                  descriptionController.text !=
+                                      (transaction.description ?? '')) {
+                                final updatedTransaction = transaction.copyWith(
+                                  amount: amount,
+                                  description: drift.Value(
+                                    descriptionController.text.isEmpty
+                                        ? null
+                                        : descriptionController.text,
+                                  ),
+                                );
+
+                                // Use the new method that handles wallet balance adjustment
+                                await _transactionRepository
+                                    .updateTransactionWithBalanceAdjustment(
+                                      transaction,
+                                      updatedTransaction,
+                                    );
+                              }
+
+                              if (mounted) {
+                                Navigator.pop(context);
+                                _loadTransactions();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Transaction updated successfully',
+                                    ),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Error updating transaction: $e',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        child: const Text('Update'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteTransactionDialog(Transaction transaction) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: const Text(
+          'Are you sure you want to delete this transaction?\n\n'
+          '⚠️ Warning: This may cause inconsistencies in your wallet balance. '
+          'The transaction amount will not be automatically adjusted in your wallet.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await _transactionRepository.deleteTransaction(transaction.id);
+                if (mounted) {
+                  Navigator.pop(context);
+                  _loadTransactions();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Transaction deleted successfully'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting transaction: $e')),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -134,6 +134,12 @@ class AppDatabase extends _$AppDatabase {
         'amount': 500.0,
       },
       {'name': 'M-Shwari', 'transaction_sender_name': 'MPESA', 'amount': 200.0},
+      {'name': 'SC BANK', 'transaction_sender_name': 'MPESA', 'amount': 0.0},
+      {
+        'name': 'EQUITY BANK',
+        'transaction_sender_name': 'MPESA',
+        'amount': 0.0,
+      },
       {'name': 'Cash', 'transaction_sender_name': 'CASH', 'amount': 0.0},
     ];
 
