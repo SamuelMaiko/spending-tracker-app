@@ -154,9 +154,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   trailing: Switch(
                     value: _syncWithCloud,
                     onChanged: (value) {
-                      setState(() {
-                        _syncWithCloud = value;
-                      });
+                      if (value) {
+                        // Show Google Sign-in dialog when enabling sync
+                        _showGoogleSignInDialog();
+                      } else {
+                        // Disable sync directly
+                        setState(() {
+                          _syncWithCloud = false;
+                        });
+                      }
                     },
                     activeThumbColor: const Color(0xFF2196F3),
                   ),
@@ -574,5 +580,126 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  void _showGoogleSignInDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Google logo and title
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  child: Icon(
+                    Icons.cloud_sync,
+                    size: 32,
+                    color: Colors.blue.shade600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Sync with Cloud',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Sign in with Google to sync your transactions across devices and keep your data safe in the cloud.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                // Sign in button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement Google Sign-in logic
+                      _handleGoogleSignIn();
+                    },
+                    icon: const Icon(
+                      Icons.account_circle,
+                      size: 20,
+                      color: Colors.blue,
+                    ),
+                    label: const Text(
+                      'Sign in with Google',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Cancel button
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleGoogleSignIn() async {
+    // TODO: Implement actual Google Sign-in logic here
+    // For now, just simulate successful sign-in
+
+    // Close the dialog
+    Navigator.of(context).pop();
+
+    // Enable sync
+    setState(() {
+      _syncWithCloud = true;
+    });
+
+    // Show success message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Successfully signed in! Cloud sync is now enabled.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 }

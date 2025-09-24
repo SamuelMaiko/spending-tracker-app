@@ -113,10 +113,11 @@ void onStart(ServiceInstance service) async {
           // Parse and create transaction
           await transactionParser.parseAndCreateTransaction(smsMessage);
 
-          // Check if this is a transaction SMS (MPESA)
+          // Check if this is a categorizable transaction SMS (MPESA, excluding transfers)
           final address = message.address ?? '';
-          if (address.toUpperCase().contains('MPESA')) {
-            // Show notification for transaction SMS
+          if (address.toUpperCase().contains('MPESA') &&
+              _isCategorizableTransaction(message.body ?? '')) {
+            // Show notification for categorizable transaction SMS
             await NotificationService.showTransactionNotification(
               title: 'New Transaction',
               body: _extractNotificationBody(message.body ?? ''),
@@ -151,6 +152,30 @@ void onStart(ServiceInstance service) async {
     print('❌ Error initializing background service: $e');
     service.stopSelf();
   }
+}
+
+/// Check if transaction is categorizable (excludes transfers)
+bool _isCategorizableTransaction(String smsBody) {
+  final body = smsBody.toLowerCase();
+
+  // Exclude transfer transactions
+  if (body.contains(
+        'moved from your m-pesa account to your business account',
+      ) ||
+      body.contains(
+        'moved from your business account to your m-pesa account',
+      ) ||
+      (body.contains('sent to') && body.contains('equity bank')) ||
+      (body.contains('sent to') && body.contains('sc bank'))) {
+    return false;
+  }
+
+  // Include other transaction types (received, sent, paid, airtime, etc.)
+  return body.contains('you have received') ||
+      body.contains('sent') ||
+      body.contains('paid to') ||
+      body.contains('airtime') ||
+      body.contains('data bundle');
 }
 
 /// Extract notification body from SMS content

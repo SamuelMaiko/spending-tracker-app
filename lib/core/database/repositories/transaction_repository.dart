@@ -33,6 +33,22 @@ class TransactionRepository {
     )..where((transaction) => transaction.id.equals(id))).getSingleOrNull();
   }
 
+  /// Get transaction by SMS hash
+  Future<Transaction?> getTransactionBySmsHash(String smsHash) async {
+    return await (_database.select(_database.transactions)
+          ..where((transaction) => transaction.smsHash.equals(smsHash)))
+        .getSingleOrNull();
+  }
+
+  /// Get the latest transaction with SMS hash (for catch-up functionality)
+  Future<Transaction?> getLatestTransactionWithSmsHash() async {
+    return await (_database.select(_database.transactions)
+          ..where((transaction) => transaction.smsHash.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.date)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   /// Get transactions by wallet ID
   Future<List<Transaction>> getTransactionsByWalletId(int walletId) async {
     return await (_database.select(_database.transactions)
@@ -74,6 +90,7 @@ class TransactionRepository {
     String? description,
     required DateTime date,
     String status = 'UNCATEGORIZED',
+    String? smsHash,
   }) async {
     return await _database
         .into(_database.transactions)
@@ -87,6 +104,7 @@ class TransactionRepository {
             description: Value(description),
             date: date,
             status: Value(status),
+            smsHash: Value(smsHash),
           ),
         );
   }

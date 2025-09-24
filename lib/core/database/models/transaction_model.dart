@@ -43,6 +43,7 @@ class TransactionModel {
   final String? description;
   final DateTime date;
   final TransactionStatus status;
+  final String? smsHash;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -56,6 +57,7 @@ class TransactionModel {
     this.description,
     required this.date,
     this.status = TransactionStatus.uncategorized,
+    this.smsHash,
     this.createdAt,
     this.updatedAt,
   });
@@ -72,6 +74,7 @@ class TransactionModel {
       description: map['description'] as String?,
       date: DateTime.parse(map['date'] as String),
       status: TransactionStatus.fromString(map['status'] as String),
+      smsHash: map['sms_hash'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -93,6 +96,7 @@ class TransactionModel {
       'description': description,
       'date': date.toIso8601String(),
       'status': status.value,
+      'sms_hash': smsHash,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -109,6 +113,7 @@ class TransactionModel {
     String? description,
     DateTime? date,
     TransactionStatus? status,
+    String? smsHash,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -122,6 +127,7 @@ class TransactionModel {
       description: description ?? this.description,
       date: date ?? this.date,
       status: status ?? this.status,
+      smsHash: smsHash ?? this.smsHash,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -138,7 +144,7 @@ class TransactionModel {
 
   @override
   String toString() {
-    return 'TransactionModel(id: $id, walletId: $walletId, categoryItemId: $categoryItemId, amount: $amount, transactionCost: $transactionCost, type: $type, description: $description, date: $date, status: $status, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'TransactionModel(id: $id, walletId: $walletId, categoryItemId: $categoryItemId, amount: $amount, transactionCost: $transactionCost, type: $type, description: $description, date: $date, status: $status, smsHash: $smsHash, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -154,6 +160,7 @@ class TransactionModel {
         other.description == description &&
         other.date == date &&
         other.status == status &&
+        other.smsHash == smsHash &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt;
   }
@@ -170,6 +177,7 @@ class TransactionModel {
       description,
       date,
       status,
+      smsHash,
       createdAt,
       updatedAt,
     );

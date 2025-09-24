@@ -1,9 +1,11 @@
 import 'package:get_it/get_it.dart';
+import 'package:another_telephony/telephony.dart';
 
 import 'core/database/database_helper.dart';
 import 'core/database/repositories/wallet_repository.dart';
 import 'core/database/repositories/transaction_repository.dart';
 import 'core/database/repositories/category_repository.dart';
+import 'core/services/sms_catchup_service.dart';
 import 'features/sms/data/datasources/sms_datasource.dart';
 import 'features/sms/data/repositories/sms_repository_impl.dart';
 import 'features/sms/domain/repositories/sms_repository.dart';
@@ -46,6 +48,14 @@ Future<void> initializeDependencies() async {
       sl<WalletRepository>(),
       sl<TransactionRepository>(),
       sl<CategoryRepository>(),
+    ),
+  );
+
+  sl.registerLazySingleton<SmsCatchupService>(
+    () => SmsCatchupService(
+      Telephony.instance,
+      sl<TransactionRepository>(),
+      sl<SmsTransactionParser>(),
     ),
   );
 

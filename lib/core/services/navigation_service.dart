@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/sms/presentation/widgets/categorization_dialog.dart';
+import '../../features/sms/presentation/pages/transactions_page.dart';
 import '../../core/database/repositories/transaction_repository.dart';
 import '../../dependency_injector.dart';
 
@@ -103,6 +104,31 @@ class NavigationService {
         // Show categorization dialog
         await showCategorizationDialog(transactionId);
       }
+    } else if (deepLink == 'uncategorized_transactions') {
+      // Navigate to main app first if not already there
+      await navigateTo('/main');
+
+      // Small delay to ensure navigation is complete
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Navigate to uncategorized transactions page
+      await _navigateToUncategorizedTransactions();
+    }
+  }
+
+  /// Navigate to Uncategorized Transactions page
+  static Future<void> _navigateToUncategorizedTransactions() async {
+    final context = currentContext;
+    if (context != null && context.mounted) {
+      // Navigate to TransactionsPage with uncategorized filter
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const TransactionsPage(
+            initialFilter: 'Uncategorized',
+            isFromReviewButton: true,
+          ),
+        ),
+      );
     }
   }
 

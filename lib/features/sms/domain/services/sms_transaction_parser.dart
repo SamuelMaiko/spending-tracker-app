@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:developer';
+import 'package:crypto/crypto.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/database/repositories/wallet_repository.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
@@ -32,8 +34,19 @@ class SmsTransactionParser {
         return;
       }
 
+      // Generate SMS hash for duplicate detection
+      final smsHash = _generateSmsHash(message);
+
+      // Check if transaction with this hash already exists
+      final existingTransaction = await _transactionRepository
+          .getTransactionBySmsHash(smsHash);
+      if (existingTransaction != null) {
+        print('ℹ️ Transaction with hash $smsHash already exists, skipping');
+        return;
+      }
+
       print('💰 Processing MPESA transaction...');
-      await _parseMpesaTransaction(message, null);
+      await _parseMpesaTransaction(message, null, smsHash);
 
       print('✅✅✅ TRANSACTION PARSER COMPLETED! ✅✅✅');
     } catch (e) {
@@ -43,10 +56,20 @@ class SmsTransactionParser {
     }
   }
 
+  /// Generate SMS hash for duplicate detection
+  String _generateSmsHash(SmsMessage message) {
+    // Create a unique hash based on sender, body, and timestamp
+    final hashInput = '${message.address}|${message.body}|${message.date}';
+    final bytes = utf8.encode(hashInput);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   /// Parse MPESA specific transactions
   Future<void> _parseMpesaTransaction(
     SmsMessage message,
     Wallet? wallet,
+    String smsHash,
   ) async {
     final body = message.body.toLowerCase();
 
@@ -57,68 +80,83 @@ class SmsTransactionParser {
       if (body.contains('you have received') &&
           body.contains('new m-pesa balance is')) {
         log('💰 Detected M-Pesa received transaction');
-        await _handleMpesaReceived(message, 'M-Pesa');
+        await _handleMpesaReceived(message, 'M-Pesa', smsHash);
       }
       // 2. Money sent from M-PESA (personal account)
       else if (body.contains('sent') &&
           body.contains('new m-pesa balance is')) {
         log('📤 Detected M-Pesa sent transaction');
-        await _handleMpesaSent(message, 'M-Pesa');
+        await _handleMpesaSent(message, 'M-Pesa', smsHash);
       }
       // 3. Money sent from Pochi La Biashara (business account)
       else if (body.contains('sent') &&
           body.contains('new business balance is')) {
         log('📤 Detected Pochi La Biashara sent transaction');
-        await _handleMpesaSent(message, 'Pochi La Biashara');
+        await _handleMpesaSent(message, 'Pochi La Biashara', smsHash);
       }
       // 4. Money paid from M-PESA
       else if (body.contains('paid to') &&
           body.contains('new m-pesa balance is')) {
         log('💳 Detected M-Pesa payment transaction');
-        await _handleMpesaPayment(message, 'M-Pesa');
+        await _handleMpesaPayment(message, 'M-Pesa', smsHash);
       }
       // 5. Money paid from Pochi La Biashara
       else if (body.contains('paid to') &&
           body.contains('new business balance is')) {
         log('💳 Detected Pochi La Biashara payment transaction');
-        await _handleMpesaPayment(message, 'Pochi La Biashara');
+        await _handleMpesaPayment(message, 'Pochi La Biashara', smsHash);
       }
       // 6. Money moved from M-PESA to business account
       else if (body.contains(
         'moved from your m-pesa account to your business account',
       )) {
-        await _handleAccountTransfer(message, 'M-Pesa', 'Pochi La Biashara');
+        await _handleAccountTransfer(
+          message,
+          'M-Pesa',
+          'Pochi La Biashara',
+          smsHash,
+        );
       }
       // 7. Money moved from business account to M-PESA
       else if (body.contains(
         'moved from your business account to your m-pesa account',
       )) {
-        await _handleAccountTransfer(message, 'Pochi La Biashara', 'M-Pesa');
+        await _handleAccountTransfer(
+          message,
+          'Pochi La Biashara',
+          'M-Pesa',
+          smsHash,
+        );
       }
       // 8. Money transferred from M-Shwari
       else if (body.contains('transferred from')) {
-        await _handleMshwariTransfer(message, 'M-Shwari', 'M-Pesa');
+        await _handleMshwariTransfer(message, 'M-Shwari', 'M-Pesa', smsHash);
       }
       // 9. Money transferred to M-Shwari
       else if (body.contains('transferred to')) {
-        await _handleMshwariTransfer(message, 'M-Pesa', 'M-Shwari');
+        await _handleMshwariTransfer(message, 'M-Pesa', 'M-Shwari', smsHash);
       }
       // 10. Withdraw from M-PESA to Cash
       else if (body.contains('withdraw') && body.contains('from')) {
-        await _handleWithdraw(message);
+        await _handleWithdraw(message, smsHash);
       }
       // 11. Data bundles purchase from M-PESA
       else if (body.contains('sent to safaricom data bundles') &&
           body.contains('new m-pesa balance is')) {
         log('📱 Detected M-Pesa data bundles purchase');
-        await _handleAirtimeDataPurchase(message, 'M-Pesa', 'Data Bundles');
+        await _handleAirtimeDataPurchase(
+          message,
+          'M-Pesa',
+          'Data Bundles',
+          smsHash,
+        );
       }
       // 12. Airtime purchase from M-PESA
       else if (body.contains('you bought') &&
           body.contains('of airtime') &&
           body.contains('new m-pesa balance is')) {
         log('📱 Detected M-Pesa airtime purchase');
-        await _handleAirtimeDataPurchase(message, 'M-Pesa', 'Airtime');
+        await _handleAirtimeDataPurchase(message, 'M-Pesa', 'Airtime', smsHash);
       }
       // 13. Airtime purchase from Pochi La Biashara
       else if (body.contains('you bought') &&
@@ -129,6 +167,7 @@ class SmsTransactionParser {
           message,
           'Pochi La Biashara',
           'Airtime',
+          smsHash,
         );
       }
       // 14. Bank transfer to SC Bank
@@ -170,6 +209,7 @@ class SmsTransactionParser {
   Future<void> _handleMpesaReceived(
     SmsMessage message,
     String walletName,
+    String smsHash,
   ) async {
     try {
       final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)\s+from');
@@ -195,6 +235,7 @@ class SmsTransactionParser {
         description: 'Received to $walletName',
         date: date,
         status: 'UNCATEGORIZED',
+        smsHash: smsHash,
       );
 
       // Update wallet balance (add amount)
@@ -210,6 +251,7 @@ class SmsTransactionParser {
   Future<void> _handleMpesaPayment(
     SmsMessage message,
     String walletName,
+    String smsHash,
   ) async {
     try {
       final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)\s+paid');
@@ -231,6 +273,7 @@ class SmsTransactionParser {
         type: 'DEBIT',
         description: 'Sent from $walletName',
         date: date,
+        smsHash: smsHash,
       );
 
       // Update wallet balance (subtract amount + transaction cost)
@@ -243,7 +286,11 @@ class SmsTransactionParser {
   }
 
   /// Handle money sent transactions (DEBIT)
-  Future<void> _handleMpesaSent(SmsMessage message, String walletName) async {
+  Future<void> _handleMpesaSent(
+    SmsMessage message,
+    String walletName,
+    String smsHash,
+  ) async {
     try {
       final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)\s+sent');
       final transactionCost = _extractTransactionCost(message.body);
@@ -264,6 +311,7 @@ class SmsTransactionParser {
         type: 'DEBIT',
         description: 'Sent from $walletName',
         date: date,
+        smsHash: smsHash,
       );
 
       // Update wallet balance (subtract amount + transaction cost)
@@ -280,6 +328,7 @@ class SmsTransactionParser {
     SmsMessage message,
     String fromWallet,
     String toWallet,
+    String smsHash,
   ) async {
     try {
       final amount = _extractAmount(
@@ -304,6 +353,7 @@ class SmsTransactionParser {
         description:
             '${normalizeWalletName(fromWallet)} to ${normalizeWalletName(toWallet)}',
         date: date,
+        smsHash: smsHash,
       );
 
       // Update wallet balances
@@ -321,6 +371,7 @@ class SmsTransactionParser {
     SmsMessage message,
     String fromWallet,
     String toWallet,
+    String smsHash,
   ) async {
     try {
       final amount = _extractAmount(
@@ -347,6 +398,7 @@ class SmsTransactionParser {
         type: 'TRANSFER',
         description: '$fromWallet to $toWallet',
         date: date,
+        smsHash: smsHash,
       );
 
       // Update wallet balances
@@ -360,7 +412,7 @@ class SmsTransactionParser {
   }
 
   /// Handle withdraw transactions (M-Pesa to Cash)
-  Future<void> _handleWithdraw(SmsMessage message) async {
+  Future<void> _handleWithdraw(SmsMessage message, String smsHash) async {
     try {
       final amount = _extractAmount(
         message.body,
@@ -384,6 +436,7 @@ class SmsTransactionParser {
         type: 'WITHDRAW',
         description: 'Withdrawn from M-Pesa',
         date: date,
+        smsHash: smsHash,
       );
 
       // Update wallet balances
@@ -513,6 +566,7 @@ class SmsTransactionParser {
     SmsMessage message,
     String walletName,
     String purchaseType,
+    String smsHash,
   ) async {
     try {
       final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)');
@@ -539,6 +593,7 @@ class SmsTransactionParser {
         description: '$purchaseType purchase',
         date: date,
         status: categoryItemId != null ? 'CATEGORIZED' : 'UNCATEGORIZED',
+        smsHash: smsHash,
       );
 
       // Update wallet balance (subtract amount and transaction cost)

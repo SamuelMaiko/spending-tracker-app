@@ -137,20 +137,20 @@ class NotificationService {
       final transactionId = int.tryParse(transactionIdStr);
 
       if (transactionId != null) {
-        // Navigate to categorization
-        _navigateToCategorizationPopup(transactionId);
+        // Navigate to Uncategorized Transactions page instead of popup
+        _navigateToUncategorizedTransactions();
       }
     }
   }
 
-  /// Navigate to categorization popup
-  static void _navigateToCategorizationPopup(int transactionId) {
+  /// Navigate to Uncategorized Transactions page
+  static void _navigateToUncategorizedTransactions() {
     print(
-      '🔔 Notification tapped - should open categorization for transaction: $transactionId',
+      '🔔 Notification tapped - navigating to Uncategorized Transactions page',
     );
 
-    // Use the navigation service to handle deep-linking
-    NavigationService.handleDeepLink('categorize_transaction:$transactionId');
+    // Use NavigationService to navigate to main app and then to uncategorized transactions
+    NavigationService.handleDeepLink('uncategorized_transactions');
   }
 
   /// Pending transaction ID for categorization

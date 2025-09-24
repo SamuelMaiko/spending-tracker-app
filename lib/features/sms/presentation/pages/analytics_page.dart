@@ -71,6 +71,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   // Filter state
   DateTime _selectedMonth = DateTime.now();
   List<DateTime> _availableMonths = [];
+  Set<String> _expandedCategories = {};
 
   // 16 colors for categories
   static const List<Color> _categoryColors = [
@@ -592,6 +593,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
               const SizedBox(height: 24),
 
+              // Category Breakdown
+              _buildCategoryBreakdown(),
+
+              const SizedBox(height: 24),
+
               // Monthly Spending Trend
               _buildMonthlySpendingTrend(),
 
@@ -783,6 +789,256 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               color: Colors.grey.shade600,
               fontWeight: FontWeight.w500,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryBreakdown() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Category Breakdown',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _categorySpending.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      'No category data available',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                )
+              : Column(
+                  children: _categorySpending.map((category) {
+                    return _buildExpandableCategoryItem(category);
+                  }).toList(),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpandableCategoryItem(CategorySpending category) {
+    final isExpanded = _expandedCategories.contains(category.categoryName);
+    final percentage = _totalSpentThisMonth > 0
+        ? (category.amount / _totalSpentThisMonth) * 100
+        : 0.0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // Category header
+          InkWell(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedCategories.remove(category.categoryName);
+                } else {
+                  _expandedCategories.add(category.categoryName);
+                }
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Color indicator
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: category.color,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Category name
+                  Expanded(
+                    child: Text(
+                      category.categoryName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  // Amount and percentage
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'KSh ${category.amount.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${percentage.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  // Expand/collapse icon
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded content (category items and transactions)
+          if (isExpanded) _buildCategoryDetails(category),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryDetails(CategorySpending category) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(),
+          const SizedBox(height: 8),
+          // Category items section
+          FutureBuilder<List<CategoryItem>>(
+            future: _getCategoryItems(category.categoryName),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text(
+                    'No category items found',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                );
+              }
+
+              final categoryItems = snapshot.data!;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Category Items:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...categoryItems.map((item) => _buildCategoryItemRow(item)),
+                  const SizedBox(height: 16),
+                  // Transactions section
+                  FutureBuilder<List<Transaction>>(
+                    future: _getCategoryTransactions(category.categoryName),
+                    builder: (context, transactionSnapshot) {
+                      if (transactionSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      if (!transactionSnapshot.hasData ||
+                          transactionSnapshot.data!.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text(
+                            'No transactions found',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final transactions = transactionSnapshot.data!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Recent Transactions (${transactions.length}):',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...transactions
+                              .take(5)
+                              .map(
+                                (transaction) =>
+                                    _buildTransactionRow(transaction),
+                              ),
+                          if (transactions.length > 5)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                'and ${transactions.length - 5} more...',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1019,5 +1275,157 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         ],
       ),
     );
+  }
+
+  // Helper methods for category breakdown
+  Future<List<CategoryItem>> _getCategoryItems(String categoryName) async {
+    try {
+      final categories = await _categoryRepository.getAllCategories();
+      final category = categories.firstWhere(
+        (cat) => cat.name == categoryName,
+        orElse: () => throw Exception('Category not found'),
+      );
+      return await _categoryRepository.getCategoryItemsByCategoryId(
+        category.id,
+      );
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Transaction>> _getCategoryTransactions(
+    String categoryName,
+  ) async {
+    try {
+      // Get all transactions for the selected month
+      final startOfMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month,
+        1,
+      );
+      final endOfMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + 1,
+        0,
+        23,
+        59,
+        59,
+      );
+
+      final allTransactions = await _transactionRepository
+          .getTransactionsByDateRange(
+            startDate: startOfMonth,
+            endDate: endOfMonth,
+          );
+
+      // Get category items for this category
+      final categoryItems = await _getCategoryItems(categoryName);
+      final categoryItemIds = categoryItems.map((item) => item.id).toSet();
+
+      // Filter transactions that belong to this category
+      final categoryTransactions = allTransactions.where((transaction) {
+        return transaction.categoryItemId != null &&
+            categoryItemIds.contains(transaction.categoryItemId);
+      }).toList();
+
+      // Sort by date descending (most recent first)
+      categoryTransactions.sort((a, b) => b.date.compareTo(a.date));
+
+      return categoryTransactions;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Widget _buildCategoryItemRow(CategoryItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(item.name, style: const TextStyle(fontSize: 14)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionRow(Transaction transaction) {
+    final isDebit = transaction.type == 'DEBIT';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          // Transaction type icon
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isDebit ? Colors.red.shade50 : Colors.green.shade50,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              isDebit ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 16,
+              color: isDebit ? Colors.red : Colors.green,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Transaction details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.description ?? 'Transaction',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  _formatTransactionDate(transaction.date),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          // Amount
+          Text(
+            '${isDebit ? '-' : '+'}KSh ${transaction.amount.toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDebit ? Colors.red : Colors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTransactionDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final transactionDate = DateTime(date.year, date.month, date.day);
+
+    if (transactionDate == today) {
+      return 'Today ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (transactionDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
   }
 }

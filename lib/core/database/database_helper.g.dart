@@ -958,6 +958,17 @@ class $TransactionsTable extends Transactions
     requiredDuringInsert: false,
     defaultValue: const Constant('UNCATEGORIZED'),
   );
+  static const VerificationMeta _smsHashMeta = const VerificationMeta(
+    'smsHash',
+  );
+  @override
+  late final GeneratedColumn<String> smsHash = GeneratedColumn<String>(
+    'sms_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -993,6 +1004,7 @@ class $TransactionsTable extends Transactions
     description,
     date,
     status,
+    smsHash,
     createdAt,
     updatedAt,
   ];
@@ -1076,6 +1088,12 @@ class $TransactionsTable extends Transactions
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
+    if (data.containsKey('sms_hash')) {
+      context.handle(
+        _smsHashMeta,
+        smsHash.isAcceptableOrUnknown(data['sms_hash']!, _smsHashMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1133,6 +1151,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      smsHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sms_hash'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1160,6 +1182,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final String? description;
   final DateTime date;
   final String status;
+  final String? smsHash;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Transaction({
@@ -1172,6 +1195,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     this.description,
     required this.date,
     required this.status,
+    this.smsHash,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1191,6 +1215,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     map['date'] = Variable<DateTime>(date);
     map['status'] = Variable<String>(status);
+    if (!nullToAbsent || smsHash != null) {
+      map['sms_hash'] = Variable<String>(smsHash);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1211,6 +1238,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : Value(description),
       date: Value(date),
       status: Value(status),
+      smsHash: smsHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(smsHash),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1231,6 +1261,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       description: serializer.fromJson<String?>(json['description']),
       date: serializer.fromJson<DateTime>(json['date']),
       status: serializer.fromJson<String>(json['status']),
+      smsHash: serializer.fromJson<String?>(json['smsHash']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1248,6 +1279,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'description': serializer.toJson<String?>(description),
       'date': serializer.toJson<DateTime>(date),
       'status': serializer.toJson<String>(status),
+      'smsHash': serializer.toJson<String?>(smsHash),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1263,6 +1295,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     Value<String?> description = const Value.absent(),
     DateTime? date,
     String? status,
+    Value<String?> smsHash = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Transaction(
@@ -1277,6 +1310,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     description: description.present ? description.value : this.description,
     date: date ?? this.date,
     status: status ?? this.status,
+    smsHash: smsHash.present ? smsHash.value : this.smsHash,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1297,6 +1331,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : this.description,
       date: data.date.present ? data.date.value : this.date,
       status: data.status.present ? data.status.value : this.status,
+      smsHash: data.smsHash.present ? data.smsHash.value : this.smsHash,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1314,6 +1349,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('description: $description, ')
           ..write('date: $date, ')
           ..write('status: $status, ')
+          ..write('smsHash: $smsHash, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1331,6 +1367,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     description,
     date,
     status,
+    smsHash,
     createdAt,
     updatedAt,
   );
@@ -1347,6 +1384,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.description == this.description &&
           other.date == this.date &&
           other.status == this.status &&
+          other.smsHash == this.smsHash &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1361,6 +1399,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> description;
   final Value<DateTime> date;
   final Value<String> status;
+  final Value<String?> smsHash;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const TransactionsCompanion({
@@ -1373,6 +1412,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.description = const Value.absent(),
     this.date = const Value.absent(),
     this.status = const Value.absent(),
+    this.smsHash = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1386,6 +1426,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.description = const Value.absent(),
     required DateTime date,
     this.status = const Value.absent(),
+    this.smsHash = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : walletId = Value(walletId),
@@ -1402,6 +1443,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? description,
     Expression<DateTime>? date,
     Expression<String>? status,
+    Expression<String>? smsHash,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -1415,6 +1457,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (description != null) 'description': description,
       if (date != null) 'date': date,
       if (status != null) 'status': status,
+      if (smsHash != null) 'sms_hash': smsHash,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1430,6 +1473,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<String?>? description,
     Value<DateTime>? date,
     Value<String>? status,
+    Value<String?>? smsHash,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -1443,6 +1487,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       description: description ?? this.description,
       date: date ?? this.date,
       status: status ?? this.status,
+      smsHash: smsHash ?? this.smsHash,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1478,6 +1523,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (smsHash.present) {
+      map['sms_hash'] = Variable<String>(smsHash.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1499,6 +1547,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('description: $description, ')
           ..write('date: $date, ')
           ..write('status: $status, ')
+          ..write('smsHash: $smsHash, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2481,6 +2530,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> description,
       required DateTime date,
       Value<String> status,
+      Value<String?> smsHash,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2495,6 +2545,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<DateTime> date,
       Value<String> status,
+      Value<String?> smsHash,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2586,6 +2637,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get smsHash => $composableBuilder(
+    column: $table.smsHash,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2690,6 +2746,11 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get smsHash => $composableBuilder(
+    column: $table.smsHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -2781,6 +2842,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<String> get smsHash =>
+      $composableBuilder(column: $table.smsHash, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -2871,6 +2935,7 @@ class $$TransactionsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> smsHash = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TransactionsCompanion(
@@ -2883,6 +2948,7 @@ class $$TransactionsTableTableManager
                 description: description,
                 date: date,
                 status: status,
+                smsHash: smsHash,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -2897,6 +2963,7 @@ class $$TransactionsTableTableManager
                 Value<String?> description = const Value.absent(),
                 required DateTime date,
                 Value<String> status = const Value.absent(),
+                Value<String?> smsHash = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TransactionsCompanion.insert(
@@ -2909,6 +2976,7 @@ class $$TransactionsTableTableManager
                 description: description,
                 date: date,
                 status: status,
+                smsHash: smsHash,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

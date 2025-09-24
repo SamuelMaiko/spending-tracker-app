@@ -6,6 +6,7 @@ import 'core/constants/app_constants.dart';
 import 'core/services/telephony_sms_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/navigation_service.dart';
+import 'core/services/sms_catchup_service.dart';
 import 'dependency_injector.dart';
 import 'features/sms/presentation/bloc/sms_bloc.dart';
 import 'features/sms/presentation/pages/main_app_page.dart';
@@ -30,6 +31,14 @@ void main() async {
 
     if (permissionsGranted) {
       await TelephonySmsService.startListening();
+
+      // Perform SMS catch-up to process missed messages
+      try {
+        final smsCatchupService = sl<SmsCatchupService>();
+        await smsCatchupService.performSmsCatchup();
+      } catch (e) {
+        print('Error during SMS catch-up: $e');
+      }
     }
   } catch (e) {
     print('Error initializing telephony SMS service: $e');

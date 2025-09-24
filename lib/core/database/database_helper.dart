@@ -52,6 +52,7 @@ class Transactions extends Table {
   DateTimeColumn get date => dateTime()();
   TextColumn get status =>
       text().withDefault(const Constant('UNCATEGORIZED'))();
+  TextColumn get smsHash => text().named('sms_hash').nullable()();
   DateTimeColumn get createdAt =>
       dateTime().named('created_at').withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
@@ -64,7 +65,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,7 +74,13 @@ class AppDatabase extends _$AppDatabase {
       await _insertDefaultData();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      // Handle future migrations here
+      // Handle migrations
+      if (from < 2) {
+        // Add sms_hash column to transactions table
+        await customStatement(
+          'ALTER TABLE transactions ADD COLUMN sms_hash TEXT',
+        );
+      }
     },
   );
 
