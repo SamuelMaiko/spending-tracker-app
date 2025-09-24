@@ -1,9 +1,9 @@
-import 'package:flutter_sms_inbox/flutter_sms_inbox.dart' as sms_inbox;
+import 'package:easy_sms_receiver/easy_sms_receiver.dart' as easy_sms;
 import '../../domain/entities/sms_message.dart';
 
 /// Data model for SMS messages that extends the domain entity
 ///
-/// This model handles the conversion between the flutter_sms_inbox package's
+/// This model handles the conversion between the easy_sms_receiver package's
 /// SmsMessage and our domain entity, following the Clean Architecture pattern
 class SmsMessageModel extends SmsMessage {
   const SmsMessageModel({
@@ -15,21 +15,34 @@ class SmsMessageModel extends SmsMessage {
     required super.type,
   });
 
-  /// Create SmsMessageModel from flutter_sms_inbox package's SmsMessage
+  /// Create SmsMessageModel from easy_sms_receiver package's SmsMessage
   ///
   /// This factory constructor converts the external library's SMS message
   /// format to our internal domain model
-  factory SmsMessageModel.fromFlutterSmsInbox(sms_inbox.SmsMessage smsMessage) {
+  factory SmsMessageModel.fromEasySmsReceiver(easy_sms.SmsMessage smsMessage) {
     return SmsMessageModel(
-      id: smsMessage.id,
+      id: DateTime.now().millisecondsSinceEpoch, // Generate ID from timestamp
       address: smsMessage.address ?? 'Unknown',
       body: smsMessage.body ?? '',
-      date:
-          smsMessage.date?.millisecondsSinceEpoch ??
-          DateTime.now().millisecondsSinceEpoch,
-      read: smsMessage.read ?? false,
-      type:
-          1, // Default to inbox type since flutter_sms_inbox doesn't have type
+      date: DateTime.now().millisecondsSinceEpoch,
+      read: false, // New messages are unread
+      type: 1, // Default to inbox type
+    );
+  }
+
+  /// Create SmsMessageModel from flutter_sms_inbox package's SmsMessage (deprecated)
+  ///
+  /// This factory constructor is kept for backward compatibility
+  /// but should be replaced with fromEasySmsReceiver
+  @deprecated
+  factory SmsMessageModel.fromFlutterSmsInbox(dynamic smsMessage) {
+    return SmsMessageModel(
+      id: DateTime.now().millisecondsSinceEpoch,
+      address: 'Unknown',
+      body: '',
+      date: DateTime.now().millisecondsSinceEpoch,
+      read: false,
+      type: 1,
     );
   }
 

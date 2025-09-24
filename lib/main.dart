@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'core/constants/app_constants.dart';
+import 'core/services/background_sms_service.dart';
+import 'core/services/notification_service.dart';
+import 'core/services/navigation_service.dart';
 import 'dependency_injector.dart';
 import 'features/sms/presentation/bloc/sms_bloc.dart';
 import 'features/sms/presentation/pages/main_app_page.dart';
@@ -15,6 +19,18 @@ void main() async {
 
   // Initialize dependency injection
   await initializeDependencies();
+
+  // Initialize notification service
+  await NotificationService.initialize();
+
+  // Initialize notification service only for now
+  // Background service will be started manually from settings if needed
+  try {
+    // Request SMS permissions
+    await Permission.sms.request();
+  } catch (e) {
+    print('Error requesting SMS permissions: $e');
+  }
 
   runApp(const SpendTrackerApp());
 }
@@ -33,6 +49,7 @@ class SpendTrackerApp extends StatelessWidget {
       child: MaterialApp(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
+        navigatorKey: NavigationService.navigatorKey,
         theme: ThemeData(
           // App color scheme based on the blue theme from the design
           colorScheme: ColorScheme.fromSeed(
