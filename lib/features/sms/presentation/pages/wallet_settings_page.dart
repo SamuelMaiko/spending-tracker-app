@@ -42,209 +42,84 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
     }
   }
 
-  void _showEditWalletDialog(Wallet wallet) {
-    final TextEditingController nameController = TextEditingController(
-      text: wallet.name,
-    );
+  void _showEditBalanceDialog(Wallet wallet) {
     final TextEditingController balanceController = TextEditingController(
       text: wallet.amount.toStringAsFixed(2),
     );
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle bar
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Title
-                  Text(
-                    'Edit ${wallet.name}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Wallet name field
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Wallet Name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Balance field
-                  TextField(
-                    controller: balanceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d+\.?\d{0,2}'),
-                      ),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Balance (KSh)',
-                      prefixText: 'KSh ',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final newName = nameController.text.trim();
-                            final newBalance = double.tryParse(
-                              balanceController.text,
-                            );
-
-                            if (newName.isNotEmpty && newBalance != null) {
-                              try {
-                                // Update wallet name if changed
-                                if (newName != wallet.name) {
-                                  final updatedWallet = wallet.copyWith(
-                                    name: newName,
-                                  );
-                                  await _walletRepository.updateWallet(
-                                    updatedWallet,
-                                  );
-                                }
-
-                                // Update balance if changed
-                                if (newBalance != wallet.amount) {
-                                  await _walletRepository.updateWalletBalance(
-                                    wallet.id,
-                                    newBalance,
-                                  );
-                                }
-
-                                Navigator.pop(context);
-                                await _loadWallets();
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '${newName} updated successfully',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error updating wallet: $e',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                          child: const Text('Update'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deleteWallet(Wallet wallet) async {
-    // Show confirmation dialog
-    final bool? confirmed = await showDialog<bool>(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Wallet'),
-        content: Text(
-          'Are you sure you want to delete "${wallet.name}"?\n\n'
-          'This action cannot be undone and will also delete all associated transactions.',
+        title: Text('Edit ${wallet.name} Balance'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: balanceController,
+              decoration: const InputDecoration(
+                labelText: 'Balance',
+                prefixText: 'KSh ',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              ],
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+          ElevatedButton(
+            onPressed: () async {
+              final balanceText = balanceController.text.trim();
+              if (balanceText.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a balance')),
+                );
+                return;
+              }
+
+              final balance = double.tryParse(balanceText);
+              if (balance == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid balance')),
+                );
+                return;
+              }
+
+              try {
+                final updatedWallet = wallet.copyWith(amount: balance);
+                await _walletRepository.updateWallet(updatedWallet);
+                if (mounted) {
+                  Navigator.pop(context);
+                  await _loadWallets();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${wallet.name} balance updated successfully',
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error updating balance: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Update'),
           ),
         ],
       ),
     );
-
-    if (confirmed == true) {
-      try {
-        await _walletRepository.deleteWallet(wallet.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Wallet "${wallet.name}" deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _loadWallets(); // Refresh the list
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting wallet: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
   }
 
   @override
@@ -274,15 +149,18 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
                 itemCount: _wallets.length,
                 itemBuilder: (context, index) {
                   final wallet = _wallets[index];
-                  return Card(
+                  return Container(
                     margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300, width: 1),
+                    ),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: _getWalletColor(wallet.name),
-                        child: Icon(
-                          _getWalletIcon(wallet.name),
-                          color: Colors.white,
-                        ),
+                        radius: 24,
+                        backgroundColor: Colors.transparent,
+                        backgroundImage: _getWalletImage(wallet.name),
                       ),
                       title: Text(
                         wallet.name,
@@ -291,237 +169,46 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
                           fontSize: 16,
                         ),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sender: ${wallet.transactionSenderName}',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'KSh ${wallet.amount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: wallet.amount >= 0
-                                  ? Colors.green.shade600
-                                  : Colors.red.shade600,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
+                      subtitle: Text(
+                        'KSh ${wallet.amount.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: wallet.amount >= 0
+                              ? Colors.green.shade600
+                              : Colors.red.shade600,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: () => _showEditWalletDialog(wallet),
-                            icon: const Icon(Icons.edit),
-                            tooltip: 'Edit Wallet',
-                          ),
-                          IconButton(
-                            onPressed: () => _deleteWallet(wallet),
-                            icon: const Icon(Icons.delete),
-                            tooltip: 'Delete Wallet',
-                            color: Colors.red.shade600,
-                          ),
-                        ],
+                      trailing: IconButton(
+                        onPressed: () => _showEditBalanceDialog(wallet),
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Edit Balance',
                       ),
                     ),
                   );
                 },
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddWalletDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Wallet'),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-      ),
     );
   }
 
-  void _showAddWalletDialog() {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController senderController = TextEditingController();
-    final TextEditingController balanceController = TextEditingController(
-      text: '0.00',
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle bar
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Title
-                  const Text(
-                    'Add New Wallet',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Wallet name field
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Wallet Name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Sender name field
-                  TextField(
-                    controller: senderController,
-                    decoration: const InputDecoration(
-                      labelText: 'Transaction Sender Name',
-                      hintText: 'e.g., MPESA, EQUITYBANK',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Balance field
-                  TextField(
-                    controller: balanceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d+\.?\d{0,2}'),
-                      ),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Initial Balance',
-                      prefixText: 'KSh ',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final name = nameController.text.trim();
-                            final sender = senderController.text
-                                .trim()
-                                .toUpperCase();
-                            final balance =
-                                double.tryParse(balanceController.text) ?? 0.0;
-
-                            if (name.isNotEmpty && sender.isNotEmpty) {
-                              try {
-                                await _walletRepository.createWallet(
-                                  name: name,
-                                  transactionSenderName: sender,
-                                  amount: balance,
-                                );
-                                Navigator.pop(context);
-                                await _loadWallets();
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Wallet "$name" created successfully',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error creating wallet: $e',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                          child: const Text('Create'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getWalletColor(String walletName) {
+  ImageProvider? _getWalletImage(String walletName) {
     switch (walletName.toLowerCase()) {
       case 'm-pesa':
-        return Colors.green;
+        return const AssetImage('assets/images/mpesa_logo.png');
       case 'pochi la biashara':
-        return Colors.orange;
+      case 'pochi':
+        return const AssetImage('assets/images/pochi_logo.png');
       case 'm-shwari':
-        return Colors.blue;
+        return const AssetImage('assets/images/mshwari_logo.png');
+      case 'sc bank':
+        return const AssetImage('assets/images/sc_bank_logo.png');
+      case 'equity bank':
+        return const AssetImage('assets/images/equity_bank_logo.png');
       case 'cash':
-        return Colors.brown;
+        return const AssetImage('assets/images/cash_logo.png');
       default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getWalletIcon(String walletName) {
-    switch (walletName.toLowerCase()) {
-      case 'm-pesa':
-      case 'pochi la biashara':
-      case 'm-shwari':
-        return Icons.phone_android;
-      case 'cash':
-        return Icons.money;
-      default:
-        return Icons.account_balance_wallet;
+        return const AssetImage('assets/images/default_wallet_logo.png');
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../database_helper.dart';
+import 'wallet_repository.dart';
 
 /// Repository for managing transaction data using Drift ORM
 class TransactionRepository {
@@ -93,6 +94,52 @@ class TransactionRepository {
   /// Update transaction
   Future<bool> updateTransaction(Transaction transaction) async {
     return await _database.update(_database.transactions).replace(transaction);
+  }
+
+  /// Update transaction cost and adjust wallet balances accordingly
+  Future<bool> updateTransactionCost(
+    int transactionId,
+    double newTransactionCost,
+  ) async {
+    // Get the current transaction
+    final transaction = await getTransactionById(transactionId);
+    if (transaction == null) {
+      throw Exception('Transaction not found');
+    }
+
+    final oldTransactionCost = transaction.transactionCost;
+    final costDifference = newTransactionCost - oldTransactionCost;
+
+    // Update the transaction cost
+    final success =
+        await (_database.update(
+          _database.transactions,
+        )..where((t) => t.id.equals(transactionId))).write(
+          TransactionsCompanion(
+            transactionCost: Value(newTransactionCost),
+            updatedAt: Value(DateTime.now()),
+          ),
+        ) >
+        0;
+
+    if (success && costDifference != 0) {
+      // Adjust wallet balance based on cost difference
+      // For DEBIT transactions, increase cost means decrease balance more
+      // For CREDIT transactions, transaction costs don't typically apply
+      if (transaction.type == 'DEBIT') {
+        final walletRepository = WalletRepository(_database);
+        final wallet = await (_database.select(
+          _database.wallets,
+        )..where((w) => w.id.equals(transaction.walletId))).getSingleOrNull();
+
+        if (wallet != null) {
+          final newBalance = wallet.amount - costDifference;
+          await walletRepository.updateWalletBalance(wallet.id, newBalance);
+        }
+      }
+    }
+
+    return success;
   }
 
   /// Categorize transaction

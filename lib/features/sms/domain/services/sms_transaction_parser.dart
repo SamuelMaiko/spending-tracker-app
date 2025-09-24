@@ -106,6 +106,57 @@ class SmsTransactionParser {
       // 10. Withdraw from M-PESA to Cash
       else if (body.contains('withdraw') && body.contains('from')) {
         await _handleWithdraw(message);
+      }
+      // 11. Data bundles purchase from M-PESA
+      else if (body.contains('sent to safaricom data bundles') &&
+          body.contains('new m-pesa balance is')) {
+        log('📱 Detected M-Pesa data bundles purchase');
+        await _handleAirtimeDataPurchase(message, 'M-Pesa', 'Data Bundles');
+      }
+      // 12. Airtime purchase from M-PESA
+      else if (body.contains('you bought') &&
+          body.contains('of airtime') &&
+          body.contains('new m-pesa balance is')) {
+        log('📱 Detected M-Pesa airtime purchase');
+        await _handleAirtimeDataPurchase(message, 'M-Pesa', 'Airtime');
+      }
+      // 13. Airtime purchase from Pochi La Biashara
+      else if (body.contains('you bought') &&
+          body.contains('of airtime') &&
+          body.contains('new business balance is')) {
+        log('📱 Detected Pochi La Biashara airtime purchase');
+        await _handleAirtimeDataPurchase(
+          message,
+          'Pochi La Biashara',
+          'Airtime',
+        );
+      }
+      // 14. Bank transfer to SC Bank
+      else if (body.contains('sent to c2b standard chartered bank') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer to SC Bank');
+        await _handleBankTransfer(message, 'M-Pesa', 'SC BANK');
+      }
+      // 15. Bank transfer to Equity Bank
+      else if (body.contains('sent to') &&
+          body.contains('equity') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer to Equity Bank');
+        await _handleBankTransfer(message, 'M-Pesa', 'EQUITY BANK');
+      }
+      // 16. Money received from SC Bank
+      else if (body.contains('you have received') &&
+          body.contains('from standard chartered bank') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer from SC Bank');
+        await _handleBankTransfer(message, 'SC BANK', 'M-Pesa');
+      }
+      // 17. Money received from Equity Bank
+      else if (body.contains('you have received') &&
+          body.contains('from equity bulk account') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer from Equity Bank');
+        await _handleBankTransfer(message, 'EQUITY BANK', 'M-Pesa');
       } else {
         log('ℹ️ MPESA message not recognized for transaction parsing');
         log('📝 Message content: ${message.body}');
@@ -243,13 +294,6 @@ class SmsTransactionParser {
       }
 
       log('🔄 Processing TRANSFER: KSh$amount from $fromWallet to $toWallet');
-
-      String normalizeWalletName(String name) {
-        if (name == "Pochi La Biashara") {
-          return "Pochi";
-        }
-        return name;
-      }
 
       // Create single TRANSFER transaction from source wallet
       await _transactionRepository.createTransaction(
@@ -462,5 +506,134 @@ class SmsTransactionParser {
     } catch (e) {
       log('❌ Error updating wallet balance: $e');
     }
+  }
+
+  /// Handle airtime and data bundle purchases with auto-categorization
+  Future<void> _handleAirtimeDataPurchase(
+    SmsMessage message,
+    String walletName,
+    String purchaseType,
+  ) async {
+    try {
+      final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)');
+      final transactionCost = _extractTransactionCost(message.body);
+      final date = _extractDate(message.body);
+
+      if (amount == null || date == null) {
+        log('❌ Could not extract amount or date from $purchaseType purchase');
+        return;
+      }
+
+      log('📱 Processing $purchaseType PURCHASE: KSh$amount from $walletName');
+
+      // Try to auto-link to "Airtime" category item
+      int? categoryItemId = await _getAirtimeCategoryItemId();
+
+      // Create DEBIT transaction
+      await _transactionRepository.createTransaction(
+        walletId: (await _getWalletByName(walletName))!.id,
+        categoryItemId: categoryItemId,
+        amount: amount,
+        transactionCost: transactionCost,
+        type: 'DEBIT',
+        description: '$purchaseType purchase',
+        date: date,
+        status: categoryItemId != null ? 'CATEGORIZED' : 'UNCATEGORIZED',
+      );
+
+      // Update wallet balance (subtract amount and transaction cost)
+      await _updateWalletBalance(walletName, -(amount + transactionCost));
+
+      log('✅ $purchaseType purchase transaction created successfully');
+    } catch (e) {
+      log('❌ Error handling $purchaseType purchase: $e');
+    }
+  }
+
+  /// Handle bank transfers
+  Future<void> _handleBankTransfer(
+    SmsMessage message,
+    String fromWallet,
+    String toWallet,
+  ) async {
+    try {
+      final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)');
+      final transactionCost = _extractTransactionCost(message.body);
+      final date = _extractDate(message.body);
+
+      if (amount == null || date == null) {
+        log('❌ Could not extract amount or date from bank transfer');
+        return;
+      }
+
+      log(
+        '🏦 Processing BANK TRANSFER: KSh$amount from $fromWallet to $toWallet',
+      );
+
+      // Ensure both wallets exist
+      await _ensureBankWalletExists(fromWallet);
+      await _ensureBankWalletExists(toWallet);
+
+      // Create TRANSFER transaction
+      await _transactionRepository.createTransaction(
+        walletId: (await _getWalletByName(fromWallet))!.id,
+        categoryItemId: null,
+        amount: amount,
+        transactionCost: transactionCost,
+        type: 'TRANSFER',
+        description:
+            '${normalizeWalletName(fromWallet)} to ${normalizeWalletName(toWallet)}',
+        date: date,
+        status: 'CATEGORIZED', // Transfers don't need categorization
+      );
+
+      // Update wallet balances
+      await _updateWalletBalance(fromWallet, -(amount + transactionCost));
+      await _updateWalletBalance(toWallet, amount);
+
+      log('✅ Bank transfer transaction created successfully');
+    } catch (e) {
+      log('❌ Error handling bank transfer: $e');
+    }
+  }
+
+  /// Get Airtime category item ID for auto-categorization
+  Future<int?> _getAirtimeCategoryItemId() async {
+    try {
+      final categoryItems = await _categoryRepository.getAllCategoryItems();
+      final airtimeItem = categoryItems
+          .where((item) => item.name.toLowerCase() == 'airtime')
+          .firstOrNull;
+      return airtimeItem?.id;
+    } catch (e) {
+      log('❌ Error getting Airtime category item: $e');
+      return null;
+    }
+  }
+
+  /// Ensure bank wallet exists, create if not
+  Future<void> _ensureBankWalletExists(String walletName) async {
+    try {
+      final existingWallet = await _getWalletByName(walletName);
+      if (existingWallet == null) {
+        // Create the bank wallet
+        await _walletRepository.createWallet(
+          name: walletName,
+          amount: 0.0,
+          transactionSenderName: 'MPESA',
+        );
+        log('✅ Created bank wallet: $walletName');
+      }
+    } catch (e) {
+      log('❌ Error ensuring bank wallet exists: $e');
+    }
+  }
+
+  /// Normalize wallet names for display
+  String normalizeWalletName(String name) {
+    if (name == "Pochi La Biashara") {
+      return "Pochi";
+    }
+    return name;
   }
 }
