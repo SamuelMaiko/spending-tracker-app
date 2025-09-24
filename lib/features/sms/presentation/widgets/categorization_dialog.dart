@@ -26,7 +26,6 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
   CategoryItem? _selectedCategoryItem;
   bool _isLoading = true;
   bool _showCategoryItems = false;
-  bool _useCategoryOnly = false;
 
   final TextEditingController _newCategoryController = TextEditingController();
   final TextEditingController _newCategoryItemController =
@@ -107,36 +106,19 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
   }
 
   Future<void> _categorizeTransaction() async {
-    if (!_useCategoryOnly && _selectedCategoryItem == null) {
+    if (_selectedCategoryItem == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a category item or use category only'),
-        ),
+        const SnackBar(content: Text('Please select a category item')),
       );
       return;
     }
 
-    if (_useCategoryOnly && _selectedCategory == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a category')));
-      return;
-    }
-
     try {
-      if (_useCategoryOnly) {
-        // Categorize with category only (no category item)
-        await _transactionRepository.categorizeByCategoryOnly(
-          widget.transaction.id!,
-          _selectedCategory!.id,
-        );
-      } else {
-        // Update transaction with category item using the proper repository method
-        await _transactionRepository.categorizeTransaction(
-          widget.transaction.id!,
-          _selectedCategoryItem!.id,
-        );
-      }
+      // Update transaction with category item using the proper repository method
+      await _transactionRepository.categorizeTransaction(
+        widget.transaction.id!,
+        _selectedCategoryItem!.id,
+      );
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
@@ -246,7 +228,22 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
   }
 
   String _getTransactionTitle() {
-    return widget.transaction.description ?? 'Transaction';
+    final description = widget.transaction.description ?? '';
+    final type = widget.transaction.type;
+
+    // Use transaction type and description to determine title
+    switch (type) {
+      case 'CREDIT':
+        return "Received to M-Pesa";
+      case 'DEBIT':
+        return "Sent from M-Pesa";
+      case 'TRANSFER':
+        return description; // "M-Pesa to Pochi"
+      case 'WITHDRAW':
+        return description; // "Withdrawn from M-Pesa"
+      default:
+        return 'Transaction'; // Fallback
+    }
   }
 
   Widget _buildCategoriesView() {
@@ -294,9 +291,6 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
           _selectedCategory = categoryWithItems.category;
           _showCategoryItems = true;
         });
-      },
-      onLongPress: () {
-        _showCategoryOptionsDialog(categoryWithItems.category);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -424,16 +418,12 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
                 childAspectRatio: 2.5,
               ),
               itemCount:
-                  categoryWithItems.items.length +
-                  2, // +1 for add button, +1 for category-only option
+                  categoryWithItems.items.length + 1, // +1 for add button
               itemBuilder: (context, index) {
-                if (index == 0) {
-                  // First item is "Use Category Only" option
-                  return _buildCategoryOnlyButton();
-                } else if (index == categoryWithItems.items.length + 1) {
+                if (index == categoryWithItems.items.length) {
                   return _buildAddCategoryItemButton();
                 } else {
-                  final categoryItem = categoryWithItems.items[index - 1];
+                  final categoryItem = categoryWithItems.items[index];
                   return _buildCategoryItemButton(categoryItem);
                 }
               },
@@ -441,7 +431,7 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
           ),
 
           // Categorize button
-          if (_selectedCategoryItem != null || _useCategoryOnly)
+          if (_selectedCategoryItem != null)
             Padding(
               padding: const EdgeInsets.only(top: 16, bottom: 20),
               child: SizedBox(
@@ -468,50 +458,6 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
     );
   }
 
-  Widget _buildCategoryOnlyButton() {
-    final isSelected = _useCategoryOnly;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _useCategoryOnly = true;
-          _selectedCategoryItem = null; // Clear category item selection
-        });
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.green.shade50 : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Colors.green.shade300 : Colors.grey.shade200,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle,
-              color: isSelected ? Colors.green.shade600 : Colors.grey.shade600,
-              size: 20,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Use Category Only',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isSelected
-                    ? Colors.green.shade600
-                    : Colors.grey.shade700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildCategoryItemButton(CategoryItem categoryItem) {
     final isSelected = _selectedCategoryItem?.id == categoryItem.id;
 
@@ -519,7 +465,6 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
       onTap: () {
         setState(() {
           _selectedCategoryItem = categoryItem;
-          _useCategoryOnly = false; // Clear category-only selection
         });
       },
       child: Container(
@@ -586,81 +531,32 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
   }
 
   void _showAddCategoryDialog() {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle bar
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Title
-              const Text(
-                'Add New Category',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 20),
-
-              // Text field
-              TextField(
-                controller: _newCategoryController,
-                decoration: const InputDecoration(
-                  labelText: 'Category name',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 20),
-
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (_newCategoryController.text.trim().isNotEmpty) {
-                          Navigator.of(context).pop();
-                          _createCategory(_newCategoryController.text.trim());
-                        }
-                      },
-                      child: const Text('Add'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Category'),
+        content: TextField(
+          controller: _newCategoryController,
+          decoration: const InputDecoration(
+            labelText: 'Category name',
+            border: OutlineInputBorder(),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_newCategoryController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop();
+                _createCategory(_newCategoryController.text.trim());
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
   }
@@ -693,139 +589,6 @@ class _CategorizationDialogState extends State<CategorizationDialog> {
               }
             },
             child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCategoryOptionsDialog(Category category) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Manage "${category.name}"'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: Colors.blue),
-              title: const Text('Edit Category'),
-              onTap: () {
-                Navigator.pop(context);
-                _showEditCategoryDialog(category);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete Category'),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteCategoryDialog(category);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditCategoryDialog(Category category) {
-    final controller = TextEditingController(text: category.name);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Category'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Category Name',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty && newName != category.name) {
-                try {
-                  final updatedCategory = Category(
-                    id: category.id,
-                    name: newName,
-                  );
-                  await _categoryRepository.updateCategory(updatedCategory);
-                  if (mounted) {
-                    Navigator.pop(context);
-                    await _loadCategories();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Category updated to "$newName"')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error updating category: $e')),
-                    );
-                  }
-                }
-              } else {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteCategoryDialog(Category category) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Category'),
-        content: Text(
-          'Are you sure you want to delete "${category.name}"? This will also delete all category items and uncategorize related transactions.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await _categoryRepository.deleteCategory(category.id);
-                if (mounted) {
-                  Navigator.pop(context);
-                  await _loadCategories();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Category "${category.name}" deleted'),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error deleting category: $e')),
-                  );
-                }
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
           ),
         ],
       ),

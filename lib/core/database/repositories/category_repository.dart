@@ -14,23 +14,23 @@ class CategoryRepository {
 
   /// Get category by ID
   Future<Category?> getCategoryById(int id) async {
-    return await (_database.select(_database.categories)
-          ..where((category) => category.id.equals(id)))
-        .getSingleOrNull();
+    return await (_database.select(
+      _database.categories,
+    )..where((category) => category.id.equals(id))).getSingleOrNull();
   }
 
   /// Get category by name
   Future<Category?> getCategoryByName(String name) async {
-    return await (_database.select(_database.categories)
-          ..where((category) => category.name.equals(name)))
-        .getSingleOrNull();
+    return await (_database.select(
+      _database.categories,
+    )..where((category) => category.name.equals(name))).getSingleOrNull();
   }
 
   /// Create a new category
   Future<int> createCategory(String name) async {
-    return await _database.into(_database.categories).insert(
-          CategoriesCompanion.insert(name: name),
-        );
+    return await _database
+        .into(_database.categories)
+        .insert(CategoriesCompanion.insert(name: name));
   }
 
   /// Update category
@@ -38,11 +38,29 @@ class CategoryRepository {
     return await _database.update(_database.categories).replace(category);
   }
 
-  /// Delete category (will cascade delete category items)
+  /// Delete category (will cascade delete category items and update transactions)
   Future<int> deleteCategory(int id) async {
-    return await (_database.delete(_database.categories)
-          ..where((category) => category.id.equals(id)))
-        .go();
+    // First, get all category items for this category
+    final categoryItems = await (_database.select(
+      _database.categoryItems,
+    )..where((item) => item.categoryId.equals(id))).get();
+
+    // Update all transactions that reference these category items to null
+    for (final categoryItem in categoryItems) {
+      await (_database.update(_database.transactions)
+            ..where((t) => t.categoryItemId.equals(categoryItem.id)))
+          .write(const TransactionsCompanion(categoryItemId: Value(null)));
+    }
+
+    // Delete all category items for this category
+    await (_database.delete(
+      _database.categoryItems,
+    )..where((item) => item.categoryId.equals(id))).go();
+
+    // Finally, delete the category
+    return await (_database.delete(
+      _database.categories,
+    )..where((category) => category.id.equals(id))).go();
   }
 
   /// Get all category items
@@ -51,17 +69,19 @@ class CategoryRepository {
   }
 
   /// Get category items by category ID
-  Future<List<CategoryItem>> getCategoryItemsByCategoryId(int categoryId) async {
-    return await (_database.select(_database.categoryItems)
-          ..where((item) => item.categoryId.equals(categoryId)))
-        .get();
+  Future<List<CategoryItem>> getCategoryItemsByCategoryId(
+    int categoryId,
+  ) async {
+    return await (_database.select(
+      _database.categoryItems,
+    )..where((item) => item.categoryId.equals(categoryId))).get();
   }
 
   /// Get category item by ID
   Future<CategoryItem?> getCategoryItemById(int id) async {
-    return await (_database.select(_database.categoryItems)
-          ..where((item) => item.id.equals(id)))
-        .getSingleOrNull();
+    return await (_database.select(
+      _database.categoryItems,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
   }
 
   /// Create a new category item
@@ -69,24 +89,25 @@ class CategoryRepository {
     required String name,
     required int categoryId,
   }) async {
-    return await _database.into(_database.categoryItems).insert(
-          CategoryItemsCompanion.insert(
-            name: name,
-            categoryId: categoryId,
-          ),
+    return await _database
+        .into(_database.categoryItems)
+        .insert(
+          CategoryItemsCompanion.insert(name: name, categoryId: categoryId),
         );
   }
 
   /// Update category item
   Future<bool> updateCategoryItem(CategoryItem categoryItem) async {
-    return await _database.update(_database.categoryItems).replace(categoryItem);
+    return await _database
+        .update(_database.categoryItems)
+        .replace(categoryItem);
   }
 
   /// Delete category item
   Future<int> deleteCategoryItem(int id) async {
-    return await (_database.delete(_database.categoryItems)
-          ..where((item) => item.id.equals(id)))
-        .go();
+    return await (_database.delete(
+      _database.categoryItems,
+    )..where((item) => item.id.equals(id))).go();
   }
 
   /// Get categories with their items
@@ -116,35 +137,33 @@ class CategoryRepository {
           .cast<CategoryItem>()
           .toList();
 
-      return CategoryWithItems(
-        category: category,
-        items: items,
-      );
+      return CategoryWithItems(category: category, items: items);
     }).toList();
   }
 
   /// Search categories by name
   Future<List<Category>> searchCategories(String searchTerm) async {
-    return await (_database.select(_database.categories)
-          ..where((category) => category.name.like('%$searchTerm%')))
-        .get();
+    return await (_database.select(
+      _database.categories,
+    )..where((category) => category.name.like('%$searchTerm%'))).get();
   }
 
   /// Search category items by name
-  Future<List<CategoryItemWithCategory>> searchCategoryItems(String searchTerm) async {
+  Future<List<CategoryItemWithCategory>> searchCategoryItems(
+    String searchTerm,
+  ) async {
     final query = _database.select(_database.categoryItems).join([
       innerJoin(
         _database.categories,
         _database.categories.id.equalsExp(_database.categoryItems.categoryId),
       ),
-    ])
-      ..where(_database.categoryItems.name.like('%$searchTerm%'));
+    ])..where(_database.categoryItems.name.like('%$searchTerm%'));
 
     final results = await query.get();
     return results.map((result) {
       final categoryItem = result.readTable(_database.categoryItems);
       final category = result.readTable(_database.categories);
-      
+
       return CategoryItemWithCategory(
         categoryItem: categoryItem,
         category: category,
@@ -158,10 +177,7 @@ class CategoryWithItems {
   final Category category;
   final List<CategoryItem> items;
 
-  const CategoryWithItems({
-    required this.category,
-    required this.items,
-  });
+  const CategoryWithItems({required this.category, required this.items});
 
   @override
   String toString() {

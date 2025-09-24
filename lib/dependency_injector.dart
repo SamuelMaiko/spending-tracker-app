@@ -45,6 +45,7 @@ Future<void> initializeDependencies() async {
     () => SmsTransactionParser(
       sl<WalletRepository>(),
       sl<TransactionRepository>(),
+      sl<CategoryRepository>(),
     ),
   );
 

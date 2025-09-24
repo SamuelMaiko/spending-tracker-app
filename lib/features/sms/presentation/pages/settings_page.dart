@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/database/repositories/category_repository.dart';
+import '../../../../core/database/database_helper.dart';
+import '../../../../dependency_injector.dart';
+import 'category_items_page.dart';
 import 'wallet_settings_page.dart';
 
 /// Settings page matching the design mockup
@@ -19,17 +23,44 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _autoCategorizeTransactions = true;
   bool _syncWithCloud = false;
 
-  // Categories list
-  final List<String> _categories = [
-    'Transport',
-    'Food',
-    'Bills',
-    'Fees',
-    'Savings',
-    'Income',
-    'Shopping',
-    'Entertainment',
-  ];
+  // Category repository
+  final CategoryRepository _categoryRepository = sl<CategoryRepository>();
+  List<Category> _categories = [];
+  bool _isLoadingCategories = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when page becomes active
+    if (mounted) {
+      _loadCategories();
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _categoryRepository.getAllCategories();
+      setState(() {
+        _categories = categories;
+        _isLoadingCategories = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingCategories = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading categories: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,227 +77,251 @@ class _SettingsPageState extends State<SettingsPage> {
         centerTitle: true,
       ),
       backgroundColor: Colors.grey.shade50,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
+      body: RefreshIndicator(
+        onRefresh: _loadCategories,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
 
-            // SMS Settings Section
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              child: Text(
-                'SMS Settings',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Auto-categorize transactions toggle
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
+              // SMS Settings Section
+              Padding(
+                padding: const EdgeInsets.symmetric(
                   horizontal: AppConstants.defaultPadding,
-                  vertical: 8,
                 ),
-                title: const Text(
-                  'Auto-categorize transactions',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                trailing: Switch(
-                  value: _autoCategorizeTransactions,
-                  onChanged: (value) {
-                    setState(() {
-                      _autoCategorizeTransactions = value;
-                    });
-                  },
-                  activeThumbColor: const Color(0xFF2196F3),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Sync with cloud toggle
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.defaultPadding,
-                  vertical: 8,
-                ),
-                title: const Text(
-                  'Sync with cloud',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                trailing: Switch(
-                  value: _syncWithCloud,
-                  onChanged: (value) {
-                    setState(() {
-                      _syncWithCloud = value;
-                    });
-                  },
-                  activeThumbColor: const Color(0xFF2196F3),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Wallet Settings Section
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              child: Text(
-                'Wallet Settings',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Manage Wallets button
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.defaultPadding,
-                  vertical: 8,
-                ),
-                leading: const Icon(
-                  Icons.account_balance_wallet,
-                  color: Color(0xFF2196F3),
-                ),
-                title: const Text(
-                  'Manage Wallets',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                subtitle: const Text(
-                  'Add, edit, and manage your wallets',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WalletSettingsPage(),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Categories Section
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              child: Text(
-                'Categories',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Categories chips
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _categories.map((category) {
-                  return _buildCategoryChip(category);
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Add Category button
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding,
-              ),
-              child: TextButton.icon(
-                onPressed: _showAddCategoryDialog,
-                icon: const Icon(Icons.add, color: Color(0xFF2196F3)),
-                label: const Text(
-                  'Add Category',
-                  style: TextStyle(
-                    color: Color(0xFF2196F3),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                child: Text(
+                  'SMS Settings',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 100), // Space for bottom navigation
-          ],
+              const SizedBox(height: 16),
+
+              // Auto-categorize transactions toggle
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  title: const Text(
+                    'Auto-categorize transactions',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  trailing: Switch(
+                    value: _autoCategorizeTransactions,
+                    onChanged: (value) {
+                      setState(() {
+                        _autoCategorizeTransactions = value;
+                      });
+                    },
+                    activeThumbColor: const Color(0xFF2196F3),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Sync with cloud toggle
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  title: const Text(
+                    'Sync with cloud',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  trailing: Switch(
+                    value: _syncWithCloud,
+                    onChanged: (value) {
+                      setState(() {
+                        _syncWithCloud = value;
+                      });
+                    },
+                    activeThumbColor: const Color(0xFF2196F3),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Wallet Settings Section
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                child: Text(
+                  'Wallet Settings',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Manage Wallets button
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  leading: const Icon(
+                    Icons.account_balance_wallet,
+                    color: Color(0xFF2196F3),
+                  ),
+                  title: const Text(
+                    'Manage Wallets',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Add, edit, and manage your wallets',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WalletSettingsPage(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Categories Section
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                child: Text(
+                  'Categories',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Categories chips
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _isLoadingCategories
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : _categories.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text(
+                            'No categories found',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _categories.map((category) {
+                          return _buildCategoryChip(category);
+                        }).toList(),
+                      ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Add Category button
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                child: TextButton.icon(
+                  onPressed: _showAddCategoryDialog,
+                  icon: const Icon(Icons.add, color: Color(0xFF2196F3)),
+                  label: const Text(
+                    'Add Category',
+                    style: TextStyle(
+                      color: Color(0xFF2196F3),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 100), // Space for bottom navigation
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCategoryChip(String category) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2196F3).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF2196F3).withValues(alpha: 0.3),
+  Widget _buildCategoryChip(Category category) {
+    return GestureDetector(
+      onTap: () => _navigateToCategoryItems(category),
+      onLongPress: () => _showCategoryOptionsDialog(category),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2196F3).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFF2196F3).withValues(alpha: 0.3),
+          ),
         ),
-      ),
-      child: Text(
-        category,
-        style: const TextStyle(
-          color: Color(0xFF2196F3),
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+        child: Text(
+          category.name,
+          style: const TextStyle(
+            color: Color(0xFF2196F3),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );
@@ -294,12 +349,28 @@ class _SettingsPageState extends State<SettingsPage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (controller.text.trim().isNotEmpty) {
-                  setState(() {
-                    _categories.add(controller.text.trim());
-                  });
-                  Navigator.of(context).pop();
+                  try {
+                    await _categoryRepository.createCategory(
+                      controller.text.trim(),
+                    );
+                    Navigator.of(context).pop();
+                    await _loadCategories();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Category created successfully'),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error creating category: $e')),
+                      );
+                    }
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -311,6 +382,146 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         );
       },
+    );
+  }
+
+  void _navigateToCategoryItems(Category category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoryItemsPage(category: category),
+      ),
+    );
+  }
+
+  void _showCategoryOptionsDialog(Category category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Manage "${category.name}"'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text('Edit Category'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditCategoryDialog(category);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete Category'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteCategoryDialog(category);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditCategoryDialog(Category category) {
+    final controller = TextEditingController(text: category.name);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Category'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Category Name',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty && newName != category.name) {
+                try {
+                  final updatedCategory = category.copyWith(name: newName);
+                  await _categoryRepository.updateCategory(updatedCategory);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    await _loadCategories();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Category updated to "$newName"')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error updating category: $e')),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteCategoryDialog(Category category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text(
+          'Are you sure you want to delete "${category.name}"?\n\nThis will also delete all category items and unlink any transactions.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _categoryRepository.deleteCategory(category.id);
+                if (mounted) {
+                  Navigator.pop(context);
+                  await _loadCategories();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Category "${category.name}" deleted'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting category: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 }

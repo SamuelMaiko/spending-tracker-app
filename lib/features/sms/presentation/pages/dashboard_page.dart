@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/repositories/wallet_repository.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
+import '../../../../core/database/repositories/category_repository.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../dependency_injector.dart';
 import 'transactions_page.dart';
@@ -20,10 +21,12 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage>
+    with WidgetsBindingObserver {
   final WalletRepository _walletRepository = sl<WalletRepository>();
   final TransactionRepository _transactionRepository =
       sl<TransactionRepository>();
+  final CategoryRepository _categoryRepository = sl<CategoryRepository>();
 
   List<Wallet> _wallets = [];
   List<Transaction> _recentTransactions = [];
@@ -39,7 +42,32 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when page becomes active
+    if (mounted) {
+      _loadDashboardData();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh data when app comes to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadDashboardData();
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -101,14 +129,15 @@ class _DashboardPageState extends State<DashboardPage> {
         return sum;
       });
 
-      // Count uncategorized transactions
+      // Count uncategorized transactions (excluding transfers)
+      // This includes transactions with deleted category items
       _uncategorizedTransactions = allTransactions
-          .where((t) => t.categoryItemId == null)
+          .where((t) => t.categoryItemId == null && t.type != 'TRANSFER')
           .length;
 
-      // Count categories (placeholder for now)
-      _totalCategories =
-          8; // Will be updated when category counting is implemented
+      // Count categories from database
+      final categories = await _categoryRepository.getAllCategories();
+      _totalCategories = categories.length;
     } catch (e) {
       print('Error loading dashboard data: $e');
     } finally {
@@ -120,10 +149,23 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: _buildGreeting(),
         backgroundColor: const Color(0xFF0288D1),
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundImage: const AssetImage(
+                'assets/images/profile_pic.png',
+              ),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadDashboardData,
@@ -132,11 +174,6 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting
-              _buildGreeting(),
-
-              const SizedBox(height: 16),
-
               // Total Balance Card
               Container(
                 width: double.infinity,
@@ -607,9 +644,9 @@ class _DashboardPageState extends State<DashboardPage> {
     return Text(
       '$greeting Maiko!',
       style: const TextStyle(
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        color: Colors.white,
       ),
     );
   }

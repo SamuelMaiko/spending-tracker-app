@@ -59,6 +59,15 @@ class _TransactionsPageState extends State<TransactionsPage> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when page becomes active
+    if (mounted) {
+      _loadTransactions();
+    }
+  }
+
   void _initializeData() {
     try {
       print('🚀🚀🚀 TRANSACTIONS PAGE INITIALIZING! 🚀🚀🚀');
@@ -113,7 +122,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
     switch (_currentFilter) {
       case 'Uncategorized':
         _filteredTransactions = _transactions
-            .where((t) => t.transaction.categoryItemId == null)
+            .where(
+              (t) =>
+                  t.transaction.categoryItemId == null &&
+                  t.transaction.type != 'TRANSFER',
+            )
             .toList();
         break;
       case 'All':
@@ -162,13 +175,32 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.isFromReviewButton
-              ? 'Uncategorized Transactions'
-              : 'Transactions',
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.isFromReviewButton
+                  ? 'Uncategorized Transactions'
+                  : 'Transactions',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              widget.isFromReviewButton
+                  ? 'Review and categorize your transactions'
+                  : 'Your transaction history',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.8),
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.blue.shade600,
         foregroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
+        centerTitle: false,
       ),
       body: BlocListener<SmsBloc, SmsState>(
         listener: (context, state) {
@@ -186,15 +218,70 @@ class _TransactionsPageState extends State<TransactionsPage> {
             ? _buildEmptyState()
             : Column(
                 children: [
-                  // Filter buttons (hidden when coming from review button)
+                  // Filter dropdown (hidden when coming from review button)
                   if (!widget.isFromReviewButton)
                     Container(
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          _buildFilterButton('All'),
+                          Icon(
+                            Icons.filter_list,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
-                          _buildFilterButton('Uncategorized'),
+                          const Text(
+                            'Filter by status',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 0,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _currentFilter,
+                                  isExpanded: true,
+                                  icon: Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'All',
+                                      child: Text('All'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Uncategorized',
+                                      child: Text('Uncategorized'),
+                                    ),
+                                  ],
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      _setFilter(newValue);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -222,10 +309,25 @@ class _TransactionsPageState extends State<TransactionsPage> {
               ),
       ),
       floatingActionButton: _showScrollToTop
-          ? FloatingActionButton(
-              onPressed: _scrollToTop,
-              backgroundColor: Colors.blue.shade600,
-              child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+          ? SizedBox(
+              width: 120,
+              height: 40,
+              child: FloatingActionButton.extended(
+                onPressed: _scrollToTop,
+                backgroundColor: Colors.blue.shade600,
+                icon: const Icon(
+                  Icons.keyboard_arrow_up,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Back to top',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
@@ -292,8 +394,29 @@ class _TransactionsPageState extends State<TransactionsPage> {
       iconColor = Colors.red.shade600;
     }
 
-    return Card(
+    // Check if transaction is uncategorized (excluding transfers)
+    // This includes transactions with deleted category items
+    final isUncategorized =
+        (transaction.categoryItemId == null ||
+            (transaction.categoryItemId != null && categoryItem == null)) &&
+        category == null &&
+        transaction.type != 'TRANSFER' &&
+        !_getCategoryOnlyFromDescription(transaction.description);
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isUncategorized
+            ? Colors.orange.withValues(alpha: 0.05)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isUncategorized
+              ? Colors.orange.shade100
+              : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
@@ -336,7 +459,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   ),
                 ),
               ),
-            ] else if (category != null) ...[
+            ] else if (category != null &&
+                transaction.categoryItemId == null) ...[
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -373,7 +497,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   ),
                 ),
               ),
-            ] else ...[
+            ] else if (!isTransfer &&
+                (transaction.categoryItemId == null ||
+                    (transaction.categoryItemId != null &&
+                        categoryItem == null))) ...[
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () => _showCategorizationDialog(transaction),
@@ -432,34 +559,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
       default:
         return 'Transaction'; // Fallback
     }
-  }
-
-  Widget _buildFilterButton(String filter) {
-    final isSelected = _currentFilter == filter;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _setFilter(filter),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.shade600 : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? Colors.blue.shade600 : Colors.grey.shade300,
-            ),
-          ),
-          child: Text(
-            filter,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.grey.shade700,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildEmptyFilterState() {

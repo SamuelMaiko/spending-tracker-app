@@ -2,6 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/database/repositories/transaction_repository.dart';
+import '../../../../core/database/repositories/category_repository.dart';
+import '../../../../core/database/database_helper.dart';
+import '../../../../dependency_injector.dart';
+
+class CategorySpending {
+  final String categoryName;
+  final double amount;
+  final Color color;
+
+  CategorySpending({
+    required this.categoryName,
+    required this.amount,
+    required this.color,
+  });
+}
+
+class MonthlySpending {
+  final String monthName;
+  final double amount;
+  final int monthIndex;
+
+  MonthlySpending({
+    required this.monthName,
+    required this.amount,
+    required this.monthIndex,
+  });
+}
+
+class DailySpending {
+  final String dayName;
+  final double amount;
+  final int dayIndex;
+
+  DailySpending({
+    required this.dayName,
+    required this.amount,
+    required this.dayIndex,
+  });
+}
 
 /// Analytics page showing spending insights and charts
 ///
@@ -15,15 +55,407 @@ class AnalyticsPage extends StatefulWidget {
 }
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
-  Future<void> _refreshAnalytics() async {
-    // Simulate loading analytics data
-    await Future.delayed(const Duration(seconds: 1));
-    // In a real app, this would reload analytics data from the database
-    if (mounted) {
-      setState(() {
-        // Refresh the UI
-      });
+  final TransactionRepository _transactionRepository =
+      sl<TransactionRepository>();
+  final CategoryRepository _categoryRepository = sl<CategoryRepository>();
+
+  double _totalSpentThisMonth = 0.0;
+  double _totalSpentLastMonth = 0.0;
+  double _transactionFeesThisMonth = 0.0;
+  double _transactionFeesLastMonth = 0.0;
+  bool _isLoading = true;
+  List<CategorySpending> _categorySpending = [];
+  List<MonthlySpending> _monthlySpending = [];
+  List<DailySpending> _weeklySpending = [];
+
+  // Filter state
+  DateTime _selectedMonth = DateTime.now();
+  List<DateTime> _availableMonths = [];
+
+  // 16 colors for categories
+  static const List<Color> _categoryColors = [
+    Colors.blue,
+    Colors.red,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+    Colors.teal,
+    Colors.pink,
+    Colors.indigo,
+    Colors.amber,
+    Colors.cyan,
+    Colors.lime,
+    Colors.deepOrange,
+    Colors.deepPurple,
+    Colors.lightBlue,
+    Colors.lightGreen,
+    Colors.brown,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAvailableMonths();
+    _loadAnalyticsData();
+  }
+
+  void _initializeAvailableMonths() {
+    final now = DateTime.now();
+    _availableMonths = [];
+
+    // Add current month and previous 11 months (12 months total)
+    for (int i = 0; i < 12; i++) {
+      final month = DateTime(now.year, now.month - i, 1);
+      _availableMonths.add(month);
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when page becomes active
+    if (mounted) {
+      _loadAnalyticsData();
+    }
+  }
+
+  Future<void> _loadAnalyticsData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final now = DateTime.now();
+      final startOfSelectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month,
+        1,
+      );
+      final endOfSelectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + 1,
+        0,
+      );
+      final startOfPreviousMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month - 1,
+        1,
+      );
+      final endOfPreviousMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month,
+        0,
+      );
+
+      final allTransactions = await _transactionRepository.getAllTransactions();
+
+      // Calculate this month's spending (DEBIT transactions)
+      final selectedMonthTransactions = allTransactions
+          .where(
+            (t) =>
+                t.date.isAfter(
+                  startOfSelectedMonth.subtract(const Duration(days: 1)),
+                ) &&
+                t.date.isBefore(
+                  endOfSelectedMonth.add(const Duration(days: 1)),
+                ) &&
+                t.type == 'DEBIT',
+          )
+          .toList();
+
+      _totalSpentThisMonth = selectedMonthTransactions.fold(
+        0.0,
+        (sum, t) => sum + t.amount,
+      );
+      _transactionFeesThisMonth = selectedMonthTransactions.fold(
+        0.0,
+        (sum, t) => sum + t.transactionCost,
+      );
+
+      // Calculate last month's spending (DEBIT transactions)
+      final lastMonthTransactions = allTransactions
+          .where(
+            (t) =>
+                t.date.isAfter(
+                  startOfPreviousMonth.subtract(const Duration(days: 1)),
+                ) &&
+                t.date.isBefore(
+                  endOfPreviousMonth.add(const Duration(days: 1)),
+                ) &&
+                t.type == 'DEBIT',
+          )
+          .toList();
+
+      _totalSpentLastMonth = lastMonthTransactions.fold(
+        0.0,
+        (sum, t) => sum + t.amount,
+      );
+      _transactionFeesLastMonth = lastMonthTransactions.fold(
+        0.0,
+        (sum, t) => sum + t.transactionCost,
+      );
+
+      // Calculate category spending for selected month
+      await _calculateCategorySpending(selectedMonthTransactions);
+
+      // Calculate monthly spending for the last 4 months
+      await _calculateMonthlySpending(allTransactions);
+
+      // Calculate weekly spending for this week
+      await _calculateWeeklySpending(allTransactions);
+    } catch (e) {
+      print('Error loading analytics data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshAnalytics() async {
+    await _loadAnalyticsData();
+  }
+
+  String _getTransactionFeesComparison() {
+    final difference = _transactionFeesThisMonth - _transactionFeesLastMonth;
+    if (difference > 0) {
+      return '+${difference.toStringAsFixed(0)} from last month';
+    } else if (difference < 0) {
+      return '${difference.toStringAsFixed(0)} from last month';
+    } else {
+      return 'Same as last month';
+    }
+  }
+
+  Future<void> _calculateCategorySpending(
+    List<Transaction> transactions,
+  ) async {
+    final Map<String, double> categoryTotals = {};
+
+    // Get all categories
+    final categories = await _categoryRepository.getAllCategories();
+    final categoryMap = {for (var cat in categories) cat.id: cat.name};
+
+    // Get all category items once to avoid repeated queries
+    final categoryItems = await _categoryRepository.getAllCategoryItems();
+    final categoryItemMap = {for (var item in categoryItems) item.id: item};
+
+    // Calculate spending by category
+    for (final transaction in transactions) {
+      if (transaction.categoryItemId != null) {
+        // Get category item to find parent category
+        final categoryItem = categoryItemMap[transaction.categoryItemId];
+
+        if (categoryItem != null) {
+          final categoryName =
+              categoryMap[categoryItem.categoryId] ?? 'Unknown';
+          categoryTotals[categoryName] =
+              (categoryTotals[categoryName] ?? 0) + transaction.amount;
+        } else {
+          // Category item not found (deleted category), treat as uncategorized
+          categoryTotals['Uncategorized'] =
+              (categoryTotals['Uncategorized'] ?? 0) + transaction.amount;
+        }
+      } else {
+        // Uncategorized transactions
+        categoryTotals['Uncategorized'] =
+            (categoryTotals['Uncategorized'] ?? 0) + transaction.amount;
+      }
+    }
+
+    // Convert to CategorySpending list with colors
+    _categorySpending = categoryTotals.entries.map((entry) {
+      final index = categoryTotals.keys.toList().indexOf(entry.key);
+      final color = _categoryColors[index % _categoryColors.length];
+      return CategorySpending(
+        categoryName: entry.key,
+        amount: entry.value,
+        color: color,
+      );
+    }).toList();
+
+    // Sort by amount descending
+    _categorySpending.sort((a, b) => b.amount.compareTo(a.amount));
+  }
+
+  Future<void> _calculateMonthlySpending(
+    List<Transaction> allTransactions,
+  ) async {
+    final now = DateTime.now();
+    final List<MonthlySpending> monthlyData = [];
+
+    // Calculate spending for the last 4 months (including current month)
+    for (int i = 3; i >= 0; i--) {
+      final targetMonth = DateTime(now.year, now.month - i, 1);
+      final nextMonth = DateTime(now.year, now.month - i + 1, 1);
+
+      // Filter transactions for this month (DEBIT only)
+      final monthTransactions = allTransactions
+          .where(
+            (t) =>
+                t.date.isAfter(targetMonth.subtract(const Duration(days: 1))) &&
+                t.date.isBefore(nextMonth) &&
+                t.type == 'DEBIT',
+          )
+          .toList();
+
+      final monthSpending = monthTransactions.fold(
+        0.0,
+        (sum, t) => sum + t.amount,
+      );
+
+      // Get month name
+      final monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      final monthName = monthNames[targetMonth.month - 1];
+
+      monthlyData.add(
+        MonthlySpending(
+          monthName: monthName,
+          amount: monthSpending,
+          monthIndex: 3 - i, // 0 is leftmost (oldest), 3 is rightmost (current)
+        ),
+      );
+    }
+
+    _monthlySpending = monthlyData;
+  }
+
+  double _getMaxMonthlySpending() {
+    if (_monthlySpending.isEmpty) return 1000;
+    return _monthlySpending
+        .map((m) => m.amount)
+        .reduce((a, b) => a > b ? a : b);
+  }
+
+  Future<void> _calculateWeeklySpending(
+    List<Transaction> allTransactions,
+  ) async {
+    final now = DateTime.now();
+    final List<DailySpending> weeklyData = [];
+
+    // Get the start of this week (Monday)
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+
+    // Calculate spending for each day of this week
+    for (int i = 0; i < 7; i++) {
+      final targetDate = startOfWeek.add(Duration(days: i));
+
+      // Filter transactions for this day (DEBIT only)
+      // Compare only the date part, ignoring time
+      final dayTransactions = allTransactions
+          .where(
+            (t) =>
+                t.date.year == targetDate.year &&
+                t.date.month == targetDate.month &&
+                t.date.day == targetDate.day &&
+                t.type == 'DEBIT',
+          )
+          .toList();
+
+      final daySpending = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+
+      // Get day name
+      final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final dayName = dayNames[i];
+
+      weeklyData.add(
+        DailySpending(dayName: dayName, amount: daySpending, dayIndex: i),
+      );
+    }
+
+    _weeklySpending = weeklyData;
+  }
+
+  double _getMaxWeeklySpending() {
+    if (_weeklySpending.isEmpty) return 100;
+    final maxSpending = _weeklySpending
+        .map((d) => d.amount)
+        .reduce((a, b) => a > b ? a : b);
+    return maxSpending > 0 ? maxSpending : 100;
+  }
+
+  String _formatYAxisValue(double value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}k';
+    } else if (value >= 100) {
+      return value.toInt().toString();
+    } else {
+      return value.toStringAsFixed(0);
+    }
+  }
+
+  String _formatMonthYear(DateTime date) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  void _showMonthPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: 300,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Select Month',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _availableMonths.length,
+                itemBuilder: (context, index) {
+                  final month = _availableMonths[index];
+                  final isSelected =
+                      month.year == _selectedMonth.year &&
+                      month.month == _selectedMonth.month;
+
+                  return ListTile(
+                    title: Text(_formatMonthYear(month)),
+                    trailing: isSelected
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedMonth = month;
+                      });
+                      Navigator.pop(context);
+                      _loadAnalyticsData();
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -52,21 +484,27 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         elevation: 0,
         toolbarHeight: 80,
         actions: [
-          // Date picker
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.calendar_today, size: 16),
-                const SizedBox(width: 6),
-                const Text('Jan 2024', style: TextStyle(fontSize: 14)),
-              ],
+          // Month picker
+          GestureDetector(
+            onTap: _showMonthPicker,
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatMonthYear(_selectedMonth),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
             ),
           ),
           // Filter button
@@ -94,7 +532,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   Expanded(
                     child: _buildStatCard(
                       'Total Spent',
-                      'KSh 1,300',
+                      'KSh ${_totalSpentThisMonth.toStringAsFixed(0)}',
                       'This month',
                       Icons.trending_up,
                       Colors.blue,
@@ -104,12 +542,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _buildStatCard(
-                      'Fees',
-                      'KSh 110',
-                      '-20 vs last month',
-                      Icons.trending_down,
-                      Colors.green,
-                      isPositive: false,
+                      'Transaction',
+                      'KSh ${_transactionFeesThisMonth.toStringAsFixed(0)}',
+                      _getTransactionFeesComparison(),
+                      _transactionFeesThisMonth >= _transactionFeesLastMonth
+                          ? Icons.trending_up
+                          : Icons.trending_down,
+                      _transactionFeesThisMonth >= _transactionFeesLastMonth
+                          ? Colors.red
+                          : Colors.green,
+                      isPositive:
+                          _transactionFeesThisMonth < _transactionFeesLastMonth,
                     ),
                   ),
                 ],
@@ -226,56 +669,53 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             child: SizedBox(
               height: 200,
               width: 200,
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 60,
-                  sections: [
-                    PieChartSectionData(
-                      color: Colors.blue,
-                      value: 35,
-                      title: '',
-                      radius: 40,
+              child: _categorySpending.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No spending data',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 60,
+                        sections: _categorySpending.map((category) {
+                          final percentage = _totalSpentThisMonth > 0
+                              ? (category.amount / _totalSpentThisMonth) * 100
+                              : 0.0;
+                          return PieChartSectionData(
+                            color: category.color,
+                            value: percentage,
+                            title: percentage > 5
+                                ? '${percentage.toStringAsFixed(0)}%'
+                                : '',
+                            radius: 40,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                    PieChartSectionData(
-                      color: Colors.green,
-                      value: 25,
-                      title: '',
-                      radius: 40,
-                    ),
-                    PieChartSectionData(
-                      color: Colors.orange,
-                      value: 22,
-                      title: '',
-                      radius: 40,
-                    ),
-                    PieChartSectionData(
-                      color: Colors.purple,
-                      value: 12,
-                      title: '',
-                      radius: 40,
-                    ),
-                    PieChartSectionData(
-                      color: Colors.red,
-                      value: 8,
-                      title: '',
-                      radius: 40,
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
           const SizedBox(height: 20),
           // Legend
           Column(
-            children: [
-              _buildLegendItem('Transport', 'KSh 450', '35%', Colors.blue),
-              _buildLegendItem('Food', 'KSh 320', '25%', Colors.green),
-              _buildLegendItem('Bills', 'KSh 280', '22%', Colors.orange),
-              _buildLegendItem('Fees', 'KSh 150', '12%', Colors.purple),
-              _buildLegendItem('Entertainment', 'KSh 100', '8%', Colors.red),
-            ],
+            children: _categorySpending.map((category) {
+              final percentage = _totalSpentThisMonth > 0
+                  ? (category.amount / _totalSpentThisMonth) * 100
+                  : 0.0;
+              return _buildLegendItem(
+                category.categoryName,
+                'KSh ${category.amount.toStringAsFixed(0)}',
+                '${percentage.toStringAsFixed(0)}%',
+                category.color,
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -347,111 +787,80 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           const SizedBox(height: 20),
           SizedBox(
             height: 200,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 3500,
-                barTouchData: BarTouchData(enabled: false),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        const months = ['Oct', 'Nov', 'Dec', 'Jan'];
-                        return Text(
-                          months[value.toInt()],
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
+            child: _monthlySpending.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No monthly data',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: _getMaxMonthlySpending() * 1.2, // Add 20% padding
+                      barTouchData: BarTouchData(enabled: false),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              final index = value.toInt();
+                              if (index >= 0 &&
+                                  index < _monthlySpending.length) {
+                                return Text(
+                                  _monthlySpending[index].monthName,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
                           ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              return Text(
+                                _formatYAxisValue(value),
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 10,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      barGroups: _monthlySpending.map((monthData) {
+                        return BarChartGroupData(
+                          x: monthData.monthIndex,
+                          barRods: [
+                            BarChartRodData(
+                              toY: monthData.amount,
+                              color: Colors.blue,
+                              width: 20,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(4),
+                                topRight: Radius.circular(4),
+                              ),
+                            ),
+                          ],
                         );
-                      },
+                      }).toList(),
                     ),
                   ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        return Text(
-                          '${(value / 1000).toInt()}k',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 10,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                barGroups: [
-                  BarChartGroupData(
-                    x: 0,
-                    barRods: [
-                      BarChartRodData(
-                        toY: 2800,
-                        color: Colors.blue,
-                        width: 20,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          topRight: Radius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 1,
-                    barRods: [
-                      BarChartRodData(
-                        toY: 3200,
-                        color: Colors.blue,
-                        width: 20,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          topRight: Radius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 2,
-                    barRods: [
-                      BarChartRodData(
-                        toY: 3000,
-                        color: Colors.blue,
-                        width: 20,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          topRight: Radius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                  BarChartGroupData(
-                    x: 3,
-                    barRods: [
-                      BarChartRodData(
-                        toY: 2600,
-                        color: Colors.blue,
-                        width: 20,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          topRight: Radius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -477,7 +886,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'This Week\'s Activity',
+            'Daily spending',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
@@ -544,18 +953,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 minX: 0,
                 maxX: 6,
                 minY: 0,
-                maxY: 350,
+                maxY: _getMaxWeeklySpending() * 1.2,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 120), // Mon
-                      FlSpot(1, 80), // Tue
-                      FlSpot(2, 200), // Wed
-                      FlSpot(3, 150), // Thu
-                      FlSpot(4, 300), // Fri
-                      FlSpot(5, 180), // Sat
-                      FlSpot(6, 90), // Sun
-                    ],
+                    spots: _weeklySpending.map((day) {
+                      return FlSpot(day.dayIndex.toDouble(), day.amount);
+                    }).toList(),
                     isCurved: true,
                     color: Colors.green,
                     barWidth: 3,

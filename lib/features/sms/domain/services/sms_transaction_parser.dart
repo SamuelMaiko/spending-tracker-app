@@ -2,14 +2,20 @@ import 'dart:developer';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/database/repositories/wallet_repository.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
+import '../../../../core/database/repositories/category_repository.dart';
 import '../entities/sms_message.dart';
 
 /// Service for parsing SMS messages and creating transactions
 class SmsTransactionParser {
   final WalletRepository _walletRepository;
   final TransactionRepository _transactionRepository;
+  final CategoryRepository _categoryRepository;
 
-  SmsTransactionParser(this._walletRepository, this._transactionRepository);
+  SmsTransactionParser(
+    this._walletRepository,
+    this._transactionRepository,
+    this._categoryRepository,
+  );
 
   /// Parse incoming SMS message and create transaction if it matches a wallet
   Future<void> parseAndCreateTransaction(SmsMessage message) async {
@@ -125,14 +131,19 @@ class SmsTransactionParser {
 
       log('💰 Processing RECEIVED TRANSACTION: KSh$amount to $walletName');
 
-      // Create CREDIT transaction
+      // Let user manually categorize received transactions
+      int? categoryItemId;
+
+      // Create CREDIT transaction with auto-categorization
       await _transactionRepository.createTransaction(
         walletId: (await _getWalletByName(walletName))!.id,
+        categoryItemId: categoryItemId,
         amount: amount,
         transactionCost: 0.0, // No cost for receiving money
         type: 'CREDIT',
         description: 'Received to $walletName',
         date: date,
+        status: 'UNCATEGORIZED',
       );
 
       // Update wallet balance (add amount)
@@ -233,13 +244,21 @@ class SmsTransactionParser {
 
       log('🔄 Processing TRANSFER: KSh$amount from $fromWallet to $toWallet');
 
+      String normalizeWalletName(String name) {
+        if (name == "Pochi La Biashara") {
+          return "Pochi";
+        }
+        return name;
+      }
+
       // Create single TRANSFER transaction from source wallet
       await _transactionRepository.createTransaction(
         walletId: (await _getWalletByName(fromWallet))!.id,
         amount: amount,
         transactionCost: 0.0,
         type: 'TRANSFER',
-        description: '$fromWallet to $toWallet',
+        description:
+            '${normalizeWalletName(fromWallet)} to ${normalizeWalletName(toWallet)}',
         date: date,
       );
 

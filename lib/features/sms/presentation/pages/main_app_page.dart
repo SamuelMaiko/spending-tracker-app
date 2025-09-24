@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/database/database_helper.dart';
+import '../../../../core/database/repositories/transaction_repository.dart';
+import '../../../../dependency_injector.dart';
 import 'dashboard_page.dart';
 import 'transactions_page.dart';
 import 'analytics_page.dart';
@@ -17,7 +20,10 @@ class MainAppPage extends StatefulWidget {
 }
 
 class _MainAppPageState extends State<MainAppPage> {
+  final TransactionRepository _transactionRepository =
+      sl<TransactionRepository>();
   int _currentIndex = 0;
+  int _uncategorizedCount = 0;
 
   // List of pages for each tab
   late final List<Widget> _pages;
@@ -31,12 +37,39 @@ class _MainAppPageState extends State<MainAppPage> {
       const AnalyticsPage(),
       const SettingsPage(),
     ];
+    _loadUncategorizedCount();
+  }
+
+  Future<void> _loadUncategorizedCount() async {
+    try {
+      final allTransactions = await _transactionRepository.getAllTransactions();
+      final uncategorizedCount = allTransactions
+          .where((t) => t.categoryItemId == null && t.type != 'TRANSFER')
+          .length;
+
+      if (mounted) {
+        setState(() {
+          _uncategorizedCount = uncategorizedCount;
+        });
+      }
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    // Refresh uncategorized count when switching tabs
+    _loadUncategorizedCount();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when returning to this page
+    _loadUncategorizedCount();
   }
 
   @override
@@ -60,8 +93,8 @@ class _MainAppPageState extends State<MainAppPage> {
             icon: Stack(
               children: [
                 const Icon(Icons.list_alt),
-                // Badge for new messages (you can implement this logic later)
-                if (_hasNewMessages())
+                // Badge for uncategorized transactions
+                if (_uncategorizedCount > 0)
                   Positioned(
                     right: 0,
                     top: 0,
@@ -75,11 +108,13 @@ class _MainAppPageState extends State<MainAppPage> {
                         minWidth: 16,
                         minHeight: 16,
                       ),
-                      child: const Text(
-                        '2',
-                        style: TextStyle(
+                      child: Text(
+                        _uncategorizedCount > 99
+                            ? '99+'
+                            : '$_uncategorizedCount',
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 8,
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
@@ -101,12 +136,5 @@ class _MainAppPageState extends State<MainAppPage> {
         ],
       ),
     );
-  }
-
-  /// Check if there are new messages (placeholder logic)
-  /// In a real app, this would check the actual state
-  bool _hasNewMessages() {
-    // For demo purposes, show badge on transactions tab
-    return true;
   }
 }
