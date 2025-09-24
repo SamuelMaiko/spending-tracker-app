@@ -223,9 +223,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Categories Section
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.defaultPadding,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 0),
                 child: Text(
                   'Categories',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
