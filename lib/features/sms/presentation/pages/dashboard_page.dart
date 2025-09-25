@@ -562,9 +562,7 @@ class _DashboardPageState extends State<DashboardPage>
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          DateFormat(
-                                            'MMM dd, yyyy',
-                                          ).format(transaction.date),
+                                          _formatRelativeDate(transaction.date),
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey.shade600,
@@ -597,6 +595,17 @@ class _DashboardPageState extends State<DashboardPage>
         ),
       ),
     );
+  }
+
+  String _formatRelativeDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (d == today) return 'Today';
+    if (d == yesterday) return 'Yesterday';
+    return DateFormat('MMM dd, yyyy').format(date);
   }
 
   Color _getTransactionColor(String type) {

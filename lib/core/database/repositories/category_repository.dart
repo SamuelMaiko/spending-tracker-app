@@ -118,25 +118,51 @@ class CategoryRepository {
     required String name,
     required int categoryId,
   }) async {
-    return await _database
+    final id = await _database
         .into(_database.categoryItems)
         .insert(
           CategoryItemsCompanion.insert(name: name, categoryId: categoryId),
         );
+
+    // Sync to cloud if enabled
+    try {
+      final created = await getCategoryItemById(id);
+      if (created != null) {
+        DataSyncService.syncItemToCloud(categoryItem: created);
+      }
+    } catch (_) {}
+
+    return id;
   }
 
   /// Update category item
   Future<bool> updateCategoryItem(CategoryItem categoryItem) async {
-    return await _database
+    final success = await _database
         .update(_database.categoryItems)
         .replace(categoryItem);
+
+    if (success) {
+      try {
+        DataSyncService.syncItemToCloud(categoryItem: categoryItem);
+      } catch (_) {}
+    }
+
+    return success;
   }
 
   /// Delete category item
   Future<int> deleteCategoryItem(int id) async {
-    return await (_database.delete(
+    final deleted = await (_database.delete(
       _database.categoryItems,
     )..where((item) => item.id.equals(id))).go();
+
+    if (deleted > 0) {
+      try {
+        DataSyncService.syncItemDeletionToCloud(categoryItemId: id.toString());
+      } catch (_) {}
+    }
+
+    return deleted;
   }
 
   /// Delete all categories

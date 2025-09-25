@@ -10,6 +10,7 @@ import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/pages/google_login_page.dart';
 import '../../../../core/services/sync_settings_service.dart';
+import '../../../../core/services/auto_categorize_settings_service.dart';
 import '../../../../core/services/data_sync_service.dart';
 import '../../../../core/widgets/sync_status_widget.dart';
 import 'category_items_page.dart';
@@ -41,7 +42,15 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadSyncState();
+    _loadAutoCategorizeState();
     _loadCategories();
+  }
+
+  Future<void> _loadAutoCategorizeState() async {
+    final enabled = await AutoCategorizeSettingsService.getEnabled();
+    if (mounted) {
+      setState(() => _autoCategorizeTransactions = enabled);
+    }
   }
 
   Future<void> _loadSyncState() async {
@@ -143,6 +152,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       setState(() {
                         _autoCategorizeTransactions = value;
                       });
+                      // Persist to Firestore similar to Sync with cloud
+                      AutoCategorizeSettingsService.setEnabled(value);
                     },
                     activeThumbColor: const Color(0xFF2196F3),
                   ),

@@ -20,23 +20,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final List<Map<String, dynamic>> _texts = [
     {
       "text": "Let's track",
-      "textColor": const Color(0xFF2196F3), // Blue
-      "dotColor": const Color(0xFF4CAF50), // Green
+      "textColor": const Color(0xFF4CAF50), // Green text only
+      "dotColor": const Color(0xFF2196F3), // Blue dot only
     },
     {
       "text": "Let's save",
-      "textColor": const Color(0xFF9C27B0), // Purple
-      "dotColor": const Color(0xFFFF9800), // Orange
+      "textColor": const Color(0xFF4CAF50),
+      "dotColor": const Color(0xFF2196F3),
     },
     {
       "text": "Let's grow",
-      "textColor": const Color(0xFF4CAF50), // Green
-      "dotColor": const Color(0xFFE91E63), // Pink
+      "textColor": const Color(0xFF4CAF50),
+      "dotColor": const Color(0xFF2196F3),
     },
     {
       "text": "Let's invest",
-      "textColor": const Color(0xFFFF5722), // Deep Orange
-      "dotColor": const Color(0xFF2196F3), // Blue
+      "textColor": const Color(0xFF4CAF50),
+      "dotColor": const Color(0xFF2196F3),
     },
   ];
 
@@ -174,7 +174,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
                   // Bottom button area
                   Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 40.0),
                     child: SizedBox(
                       width: double.infinity,
                       height: 56,

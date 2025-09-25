@@ -2,10 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 /// Widget for displaying individual transaction items
-/// 
+///
 /// Shows transaction details with colored amounts (red for outgoing, green for incoming)
 /// and categorization buttons for uncategorized transactions
 class TransactionTile extends StatelessWidget {
+  String _formatRelativeDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (d == today) return 'Today';
+    if (d == yesterday) return 'Yesterday';
+    return DateFormat('MMM dd, yyyy').format(date);
+  }
+
   final String title;
   final String subtitle;
   final DateTime date;
@@ -53,9 +64,9 @@ class TransactionTile extends StatelessWidget {
               size: 20,
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Transaction details
           Expanded(
             child: Column(
@@ -71,16 +82,16 @@ class TransactionTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${DateFormat('yyyy-MM-dd').format(date)} • ${DateFormat('HH:mm').format(date)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  '${_formatRelativeDate(date)} • ${DateFormat('HH:mm').format(date)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 if (category != null) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(12),
@@ -97,7 +108,10 @@ class TransactionTile extends StatelessWidget {
                 ] else if (needsCategorization) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(12),
@@ -115,9 +129,9 @@ class TransactionTile extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Amount and categorize button
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -135,7 +149,10 @@ class TransactionTile extends StatelessWidget {
                 GestureDetector(
                   onTap: onCategorize,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade600,
                       borderRadius: BorderRadius.circular(16),

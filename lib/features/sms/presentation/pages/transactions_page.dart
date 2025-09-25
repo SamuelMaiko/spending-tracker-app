@@ -362,6 +362,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
+  String _formatRelativeDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (d == today) return 'Today';
+    if (d == yesterday) return 'Yesterday';
+    return DateFormat('MMM dd, yyyy').format(date);
+  }
+
   Widget _buildTransactionTile(TransactionWithDetails transactionWithDetails) {
     final transaction = transactionWithDetails.transaction;
     final category = transactionWithDetails.category;
@@ -437,7 +448,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             children: [
               const SizedBox(height: 4),
               Text(
-                DateFormat('MMM dd, yyyy • hh:mm a').format(date),
+                '${_formatRelativeDate(date)} • ${DateFormat('hh:mm a').format(date)}',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
               if (transaction.transactionCost > 0) ...[

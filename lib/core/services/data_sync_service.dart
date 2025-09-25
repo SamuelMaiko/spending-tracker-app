@@ -110,6 +110,7 @@ class DataSyncService {
     try {
       final wallets = cloudData['wallets'] ?? [];
       final categories = cloudData['categories'] ?? [];
+      final categoryItems = cloudData['categoryItems'] ?? [];
       final transactions = cloudData['transactions'] ?? [];
 
       // Create wallets from cloud (preserve Firestore IDs; do NOT auto-sync)
@@ -168,17 +169,7 @@ class DataSyncService {
         final int? cloudId = rawId is int
             ? rawId
             : int.tryParse(rawId?.toString() ?? '');
-        final createdAtStr =
-            (categoryData['createdAt'] ?? categoryData['created_at'])
-                ?.toString();
-        final updatedAtStr =
-            (categoryData['updatedAt'] ?? categoryData['updated_at'])
-                ?.toString();
-        final createdAt =
-            DateTime.tryParse(createdAtStr ?? '') ?? DateTime.now();
-        final updatedAt =
-            DateTime.tryParse(updatedAtStr ?? '') ?? DateTime.now();
-
+        // Timestamps are not needed locally for categories during initial populate
         final database = sl<db.AppDatabase>();
         final companion = db.CategoriesCompanion(
           id: cloudId != null ? Value(cloudId) : const Value.absent(),
@@ -190,6 +181,33 @@ class DataSyncService {
         categoryNameToId[name] = cloudId ?? insertedId;
         developer.log(
           '📥 Created category from cloud (id=${cloudId ?? insertedId}): $name',
+        );
+      }
+
+      // Create category items from cloud (preserve IDs)
+      for (final itemData in categoryItems) {
+        final name = (itemData['name'] ?? '').toString().trim();
+        if (name.isEmpty) continue;
+
+        final dynamic rawId = itemData['id'] ?? itemData['firestoreId'];
+        final int? cloudId = rawId is int
+            ? rawId
+            : int.tryParse(rawId?.toString() ?? '');
+        final dynamic rawCatId = itemData['categoryId'];
+        final int? catId = rawCatId is int
+            ? rawCatId
+            : int.tryParse(rawCatId?.toString() ?? '');
+        if (catId == null) continue;
+
+        final dbInstance = sl<db.AppDatabase>();
+        final companion = db.CategoryItemsCompanion(
+          id: cloudId != null ? Value(cloudId) : const Value.absent(),
+          name: Value(name),
+          categoryId: Value(catId),
+        );
+        await dbInstance.into(dbInstance.categoryItems).insert(companion);
+        developer.log(
+          '📥 Created category item from cloud (id=${cloudId ?? 'auto'}) under catId=$catId: $name',
         );
       }
 
@@ -256,11 +274,13 @@ class DataSyncService {
       final wallets = await _walletRepository.getAllWallets();
       final transactions = await _transactionRepository.getAllTransactions();
       final categories = await _categoryRepository.getAllCategories();
+      final categoryItems = await _categoryRepository.getAllCategoryItems();
 
-      // Upload wallets and categories first
+      // Upload wallets, categories and category items first
       await Future.wait([
         ...wallets.map((w) => FirestoreService.uploadWallet(w)),
         ...categories.map((c) => FirestoreService.uploadCategory(c)),
+        ...categoryItems.map((i) => FirestoreService.uploadCategoryItem(i)),
       ]);
 
       // Upload transactions with enriched context for better cross-device mapping
@@ -724,6 +744,7 @@ class DataSyncService {
     db.Wallet? wallet,
     db.Transaction? transaction,
     db.Category? category,
+    db.CategoryItem? categoryItem,
   }) async {
     if (!await SyncSettingsService.canSync()) return;
 
@@ -780,6 +801,11 @@ class DataSyncService {
         await FirestoreService.uploadCategory(category);
         developer.log('📤 Synced category to cloud: ${category.name}');
       }
+
+      if (categoryItem != null) {
+        await FirestoreService.uploadCategoryItem(categoryItem);
+        developer.log('📤 Synced category item to cloud: ${categoryItem.name}');
+      }
     } catch (e) {
       developer.log('❌ Error syncing item to cloud: $e');
       // Don't rethrow - sync failures shouldn't break the app
@@ -791,6 +817,7 @@ class DataSyncService {
     String? walletId,
     String? transactionId,
     String? categoryId,
+    String? categoryItemId,
   }) async {
     if (!await SyncSettingsService.canSync()) return;
 

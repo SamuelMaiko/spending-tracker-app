@@ -36,6 +36,14 @@ class FirestoreService {
             .collection('categories')
       : null;
 
+  // New: Category Items collection (flat under user for easy lookup)
+  static CollectionReference? get _categoryItemsCollection => _isAuthenticated
+      ? _firestore
+            .collection('users')
+            .doc(_currentUserUid)
+            .collection('categoryItems')
+      : null;
+
   static DocumentReference? get _settingsDocument => _isAuthenticated
       ? _firestore.collection('users').doc(_currentUserUid)
       : null;
@@ -289,6 +297,84 @@ class FirestoreService {
     }
   }
 
+  // CATEGORY ITEM OPERATIONS
+
+  /// Upload category item with name+categoryId upsert to avoid duplicates
+  static Future<void> uploadCategoryItem(db.CategoryItem item) async {
+    if (!_isAuthenticated || _categoryItemsCollection == null) {
+      developer.log('❌ Cannot upload category item: User not authenticated');
+      return;
+    }
+    try {
+      developer.log(
+        '📤 Uploading category item: ${item.name} (catId=${item.categoryId})',
+      );
+
+      // Find existing by name+categoryId to avoid duplicates
+      String targetDocId = item.id.toString();
+      final existing = await _categoryItemsCollection!
+          .where('name', isEqualTo: item.name)
+          .where('categoryId', isEqualTo: item.categoryId)
+          .limit(1)
+          .get();
+      if (existing.docs.isNotEmpty) {
+        targetDocId = existing.docs.first.id;
+        developer.log(
+          '🔄 Found existing category item doc. Using docId=$targetDocId',
+        );
+      }
+
+      await _categoryItemsCollection!.doc(targetDocId).set({
+        'id': item.id,
+        'name': item.name,
+        'categoryId': item.categoryId,
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      developer.log('✅ Category item uploaded successfully');
+    } catch (e) {
+      developer.log('❌ Error uploading category item: $e');
+      rethrow;
+    }
+  }
+
+  /// Download category items from Firestore
+  static Future<List<Map<String, dynamic>>> downloadCategoryItems() async {
+    if (!_isAuthenticated || _categoryItemsCollection == null) {
+      developer.log('❌ Cannot download category items: User not authenticated');
+      return [];
+    }
+    try {
+      developer.log('📥 Downloading category items from Firestore');
+      final snapshot = await _categoryItemsCollection!.get();
+      final items = snapshot.docs
+          .map(
+            (doc) => {
+              ...doc.data() as Map<String, dynamic>,
+              'firestoreId': doc.id,
+            },
+          )
+          .toList();
+      developer.log('✅ Downloaded ${items.length} category items');
+      return items;
+    } catch (e) {
+      developer.log('❌ Error downloading category items: $e');
+      return [];
+    }
+  }
+
+  /// Delete category item from Firestore
+  static Future<void> deleteCategoryItem(String categoryItemId) async {
+    if (!_isAuthenticated || _categoryItemsCollection == null) return;
+    try {
+      await _categoryItemsCollection!.doc(categoryItemId).delete();
+      developer.log('✅ Category item deleted from Firestore: $categoryItemId');
+    } catch (e) {
+      developer.log('❌ Error deleting category item: $e');
+      rethrow;
+    }
+  }
+
   // SETTINGS OPERATIONS
 
   /// Upload sync settings to Firestore
@@ -324,6 +410,38 @@ class FirestoreService {
     }
   }
 
+  // AUTO-CATEGORIZE SETTINGS OPERATIONS
+  static Future<void> uploadAutoCategorizeSetting({
+    required bool enabled,
+  }) async {
+    if (!_isAuthenticated || _settingsDocument == null) return;
+    try {
+      await _settingsDocument!.set({
+        'autoCategorizeEnabled': enabled,
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      developer.log('✅ Auto-categorize setting uploaded: $enabled');
+    } catch (e) {
+      developer.log('❌ Error uploading auto-categorize setting: $e');
+      rethrow;
+    }
+  }
+
+  static Future<bool> downloadAutoCategorizeSetting() async {
+    if (!_isAuthenticated || _settingsDocument == null) return false;
+    try {
+      final doc = await _settingsDocument!.get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>?;
+        return data?['autoCategorizeEnabled'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      developer.log('❌ Error downloading auto-categorize setting: $e');
+      return false;
+    }
+  }
+
   // BATCH OPERATIONS
 
   /// Upload all local data to Firestore
@@ -331,6 +449,7 @@ class FirestoreService {
     required List<db.Wallet> wallets,
     required List<db.Transaction> transactions,
     required List<db.Category> categories,
+    required List<db.CategoryItem> categoryItems,
   }) async {
     if (!_isAuthenticated) {
       developer.log('❌ Cannot upload data: User not authenticated');
@@ -343,8 +462,9 @@ class FirestoreService {
       // Upload in parallel for better performance
       await Future.wait([
         ...wallets.map((wallet) => uploadWallet(wallet)),
-        ...transactions.map((transaction) => uploadTransaction(transaction)),
         ...categories.map((category) => uploadCategory(category)),
+        ...categoryItems.map((item) => uploadCategoryItem(item)),
+        ...transactions.map((transaction) => uploadTransaction(transaction)),
       ]);
 
       developer.log('✅ Bulk upload completed successfully');
@@ -359,7 +479,12 @@ class FirestoreService {
   downloadAllData() async {
     if (!_isAuthenticated) {
       developer.log('❌ Cannot download data: User not authenticated');
-      return {'wallets': [], 'transactions': [], 'categories': []};
+      return {
+        'wallets': [],
+        'transactions': [],
+        'categories': [],
+        'categoryItems': [],
+      };
     }
 
     try {
@@ -370,19 +495,26 @@ class FirestoreService {
         downloadWallets(),
         downloadTransactions(),
         downloadCategories(),
+        downloadCategoryItems(),
       ]);
 
       final data = {
         'wallets': results[0],
         'transactions': results[1],
         'categories': results[2],
+        'categoryItems': results[3],
       };
 
       developer.log('✅ Bulk download completed successfully');
       return data;
     } catch (e) {
       developer.log('❌ Error during bulk download: $e');
-      return {'wallets': [], 'transactions': [], 'categories': []};
+      return {
+        'wallets': [],
+        'transactions': [],
+        'categories': [],
+        'categoryItems': [],
+      };
     }
   }
 }

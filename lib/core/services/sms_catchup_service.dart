@@ -42,7 +42,8 @@ class SmsCatchupService {
       final allMpesaMessages = await _telephony.getInboxSms(
         columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
         filter: SmsFilter.where(SmsColumn.ADDRESS).like('%MPESA%'),
-        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.ASC)],
+        // Reverse the order so we process in correct order for createdAt handling
+        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
       );
 
       log('📱 Found ${allMpesaMessages.length} total MPESA SMS messages');
