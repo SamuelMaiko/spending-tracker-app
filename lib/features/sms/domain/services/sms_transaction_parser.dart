@@ -6,6 +6,7 @@ import '../../../../core/database/repositories/wallet_repository.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
 import '../../../../core/database/repositories/category_repository.dart';
 import '../entities/sms_message.dart';
+import '../../../../core/services/auto_categorize_settings_service.dart';
 
 /// Service for parsing SMS messages and creating transactions
 class SmsTransactionParser {
@@ -68,8 +69,35 @@ class SmsTransactionParser {
     log('🔍 Parsing MPESA message: ${message.body}');
 
     try {
+      // 14. Bank transfer to SC Bank
+      if (body.contains('sent to c2b standard chartered bank') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer to SC Bank');
+        await _handleBankTransfer(message, 'M-Pesa', 'SC BANK', smsHash);
+      }
+      // 15. Bank transfer to Equity Bank
+      else if (body.contains('sent to') &&
+          body.contains('equity') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer to Equity Bank');
+        await _handleBankTransfer(message, 'M-Pesa', 'EQUITY BANK', smsHash);
+      }
+      // 16. Money received from SC Bank
+      else if (body.contains('you have received') &&
+          body.contains('from standard chartered bank') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer from SC Bank');
+        await _handleBankTransfer(message, 'SC BANK', 'M-Pesa', smsHash);
+      }
+      // 17. Money received from Equity Bank
+      else if (body.contains('you have received') &&
+          body.contains('from equity bulk account') &&
+          body.contains('new m-pesa balance is')) {
+        log('🏦 Detected transfer from Equity Bank');
+        await _handleBankTransfer(message, 'EQUITY BANK', 'M-Pesa', smsHash);
+      }
       // 1. Money received to M-PESA
-      if (body.contains('you have received') &&
+      else if (body.contains('you have received') &&
           body.contains('new m-pesa balance is')) {
         log('💰 Detected M-Pesa received transaction');
         await _handleMpesaReceived(message, 'M-Pesa', smsHash);
@@ -161,36 +189,6 @@ class SmsTransactionParser {
           'Airtime',
           smsHash,
         );
-      }
-      // 14. Bank transfer to SC Bank
-      else if (body.contains('sent to c2b standard chartered bank') &&
-          body.contains('new m-pesa balance is')) {
-        log('🏦 Detected transfer to SC Bank');
-        await _handleBankTransfer(message, 'M-Pesa', 'SC BANK');
-      }
-      // 15. Bank transfer to Equity Bank
-      else if (body.contains('sent to') &&
-          body.contains('equity') &&
-          body.contains('new m-pesa balance is')) {
-        log('🏦 Detected transfer to Equity Bank');
-        await _handleBankTransfer(message, 'M-Pesa', 'EQUITY BANK');
-      }
-      // 16. Money received from SC Bank
-      else if (body.contains('you have received') &&
-          body.contains('from standard chartered bank') &&
-          body.contains('new m-pesa balance is')) {
-        log('🏦 Detected transfer from SC Bank');
-        await _handleBankTransfer(message, 'SC BANK', 'M-Pesa');
-      }
-      // 17. Money received from Equity Bank
-      else if (body.contains('you have received') &&
-          body.contains('from equity bulk account') &&
-          body.contains('new m-pesa balance is')) {
-        log('🏦 Detected transfer from Equity Bank');
-        await _handleBankTransfer(message, 'EQUITY BANK', 'M-Pesa');
-      } else {
-        log('ℹ️ MPESA message not recognized for transaction parsing');
-        log('📝 Message content: ${message.body}');
       }
     } catch (e) {
       log('❌ Error parsing MPESA transaction: $e');
@@ -602,8 +600,14 @@ class SmsTransactionParser {
 
       log('📱 Processing $purchaseType PURCHASE: KSh$amount from $walletName');
 
-      // Try to auto-link to "Airtime" category item
-      int? categoryItemId = await _getAirtimeCategoryItemId();
+      // Auto-categorize only if enabled and purchase is Airtime
+      int? categoryItemId;
+      final autoEnabled = await AutoCategorizeSettingsService.getEnabled();
+      if (autoEnabled && purchaseType.toLowerCase() == 'airtime') {
+        categoryItemId = await _getAirtimeCategoryItemId();
+      } else {
+        categoryItemId = null;
+      }
 
       // Create DEBIT transaction
       await _transactionRepository.createTransaction(
@@ -632,6 +636,7 @@ class SmsTransactionParser {
     SmsMessage message,
     String fromWallet,
     String toWallet,
+    String smsHash,
   ) async {
     try {
       final amount = _extractAmount(message.body, r'ksh([\d,]+\.?\d*)');
@@ -662,6 +667,7 @@ class SmsTransactionParser {
             '${normalizeWalletName(fromWallet)} to ${normalizeWalletName(toWallet)}',
         date: date,
         status: 'CATEGORIZED', // Transfers don't need categorization
+        smsHash: smsHash,
       );
 
       // Update wallet balances

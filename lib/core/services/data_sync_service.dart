@@ -216,10 +216,19 @@ class DataSyncService {
         final walletName = (transactionData['walletName'] ?? '').toString();
         final walletId = walletNameToId[walletName];
 
+        // Map categoryId from cloud to local category_item_id
+        int? categoryItemId;
+        final dynamic rawCatItemId = transactionData['categoryId'];
+        if (rawCatItemId is int) {
+          categoryItemId = rawCatItemId;
+        } else if (rawCatItemId != null) {
+          categoryItemId = int.tryParse(rawCatItemId.toString());
+        }
+
         if (walletId != null) {
           await _transactionRepository.createTransaction(
             walletId: walletId,
-            categoryItemId: null, // Will be set later if needed
+            categoryItemId: categoryItemId,
             amount: (transactionData['amount'] is num)
                 ? (transactionData['amount'] as num).toDouble()
                 : 0.0,
@@ -231,7 +240,9 @@ class DataSyncService {
             date:
                 DateTime.tryParse(transactionData['date'] ?? '') ??
                 DateTime.now(),
-            status: (transactionData['status'] ?? 'UNCATEGORIZED').toString(),
+            status: categoryItemId != null
+                ? 'CATEGORIZED'
+                : (transactionData['status'] ?? 'UNCATEGORIZED').toString(),
             smsHash: (transactionData['smsHash'] ?? '').toString(),
           );
           developer.log('📥 Created transaction from cloud');
@@ -839,6 +850,13 @@ class DataSyncService {
       if (categoryId != null) {
         await FirestoreService.deleteCategory(categoryId);
         developer.log('📤 Synced category deletion to cloud: $categoryId');
+      }
+
+      if (categoryItemId != null) {
+        await FirestoreService.deleteCategoryItem(categoryItemId);
+        developer.log(
+          '📤 Synced category item deletion to cloud: $categoryItemId',
+        );
       }
 
       SyncStatusService.setSyncCompleted();

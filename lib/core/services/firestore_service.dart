@@ -173,6 +173,7 @@ class FirestoreService {
         'walletId': transaction.walletId,
         'categoryId': transaction.categoryItemId,
         'amount': transaction.amount,
+        'transactionCost': transaction.transactionCost,
         'description': transaction.description,
         'type': transaction.type,
         'date': transaction.date.toIso8601String(),

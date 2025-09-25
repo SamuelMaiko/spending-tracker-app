@@ -249,6 +249,14 @@ class TransactionRepository {
       }
     }
 
+    // Sync to cloud if enabled
+    if (success) {
+      final updated = await getTransactionById(transactionId);
+      if (updated != null) {
+        DataSyncService.syncItemToCloud(transaction: updated);
+      }
+    }
+
     return success;
   }
 

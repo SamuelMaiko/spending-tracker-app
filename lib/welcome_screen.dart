@@ -136,7 +136,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Opacity(
                       opacity: _logoOpacityAnimation.value,
                       child: Image.asset(
-                        'assets/images/logo.png',
+                        'assets/images/app-logo.png',
                         width: 120,
                         height: 120,
                         fit: BoxFit.contain,
