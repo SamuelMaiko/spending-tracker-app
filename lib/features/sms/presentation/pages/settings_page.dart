@@ -11,6 +11,7 @@ import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/pages/google_login_page.dart';
 import '../../../../core/services/sync_settings_service.dart';
 import '../../../../core/services/data_sync_service.dart';
+import '../../../../core/widgets/sync_status_widget.dart';
 import 'category_items_page.dart';
 import 'wallet_settings_page.dart';
 
@@ -28,6 +29,8 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   // Settings state
   bool _autoCategorizeTransactions = true;
+  bool _syncEnabled = false;
+  bool _isUpdatingSync = false;
 
   // Category repository
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
@@ -37,7 +40,15 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _loadSyncState();
     _loadCategories();
+  }
+
+  Future<void> _loadSyncState() async {
+    final enabled = await SyncSettingsService.getSyncEnabled();
+    if (mounted) {
+      setState(() => _syncEnabled = enabled);
+    }
   }
 
   @override
@@ -45,6 +56,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.didChangeDependencies();
     // Refresh data when page becomes active
     if (mounted) {
+      _loadSyncState();
       _loadCategories();
     }
   }
@@ -161,26 +173,154 @@ class _SettingsPageState extends State<SettingsPage> {
                     builder: (context, authState) {
                       final isAuthenticated = authState is AuthAuthenticated;
                       return Switch(
-                        value: isAuthenticated,
-                        onChanged: (value) async {
-                          if (value) {
-                            // Show Google Sign-in dialog when enabling sync
-                            _showGoogleSignInDialog();
-                          } else {
-                            // Sign out and disable sync when toggling off
-                            await SyncSettingsService.setSyncEnabled(false);
-                            if (mounted) {
-                              context.read<AuthBloc>().add(
-                                const AuthSignOutRequested(),
-                              );
-                            }
-                          }
-                        },
+                        value: _syncEnabled,
+                        onChanged: _isUpdatingSync
+                            ? null
+                            : (value) async {
+                                if (value) {
+                                  if (!isAuthenticated) {
+                                    // Show Google Sign-in dialog; AuthBloc will handle sync setup
+                                    _showGoogleSignInDialog();
+                                    return;
+                                  }
+                                  // Enable sync and perform initial sync
+                                  setState(() => _isUpdatingSync = true);
+                                  try {
+                                    await SyncSettingsService.setSyncEnabled(
+                                      true,
+                                    );
+                                    await sl<DataSyncService>()
+                                        .performInitialSync();
+                                    if (mounted)
+                                      setState(() => _syncEnabled = true);
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Sync error: $e'),
+                                        ),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted)
+                                      setState(() => _isUpdatingSync = false);
+                                  }
+                                } else {
+                                  // Disable sync
+                                  setState(() => _isUpdatingSync = true);
+                                  try {
+                                    await SyncSettingsService.setSyncEnabled(
+                                      false,
+                                    );
+                                    if (mounted)
+                                      setState(() => _syncEnabled = false);
+                                  } finally {
+                                    if (mounted)
+                                      setState(() => _isUpdatingSync = false);
+                                  }
+                                }
+                              },
                         activeThumbColor: const Color(0xFF2196F3),
                       );
                     },
                   ),
                 ),
+              ),
+
+              // Sync Status and Manual Sync
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, authState) {
+                  final isAuthenticated = authState is AuthAuthenticated;
+                  if (!_syncEnabled || !isAuthenticated) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Column(
+                    children: [
+                      const SizedBox(height: 16),
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: AppConstants.defaultPadding,
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              spreadRadius: 1,
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.sync,
+                              color: Color(0xFF2196F3),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(child: FullSyncStatusWidget()),
+                            ElevatedButton.icon(
+                              onPressed: _isUpdatingSync
+                                  ? null
+                                  : () async {
+                                      setState(() => _isUpdatingSync = true);
+                                      try {
+                                        await DataSyncService.forceFullSync();
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Sync completed successfully',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Sync failed: $e'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(
+                                            () => _isUpdatingSync = false,
+                                          );
+                                        }
+                                      }
+                                    },
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Sync Now'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2196F3),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 32),
@@ -311,6 +451,95 @@ class _SettingsPageState extends State<SettingsPage> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Sign Out Button (at bottom)
+              BlocListener<AuthBloc, AuthState>(
+                listener: (context, state) {
+                  if (state is AuthUnauthenticated) {
+                    // Navigate to login page after sign out
+                    Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil('/login', (route) => false);
+                  }
+                },
+                child: BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, authState) {
+                    final isAuthenticated = authState is AuthAuthenticated;
+                    if (!isAuthenticated) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.defaultPadding,
+                      ),
+                      width: double.infinity,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          // Store context before async operations
+                          final currentContext = context;
+
+                          // Show confirmation dialog
+                          final shouldSignOut = await showDialog<bool>(
+                            context: currentContext,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Sign Out'),
+                              content: const Text(
+                                'Are you sure you want to sign out? Your local data will remain, but cloud sync will be disabled.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  child: const Text(
+                                    'Sign Out',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (shouldSignOut == true) {
+                            // Disable sync first
+                            await SyncSettingsService.setSyncEnabled(false);
+                            if (mounted) {
+                              setState(() => _syncEnabled = false);
+
+                              // Sign out
+                              currentContext.read<AuthBloc>().add(
+                                const AuthSignOutRequested(),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.red),
+                        label: const Text(
+                          'Sign Out',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
 

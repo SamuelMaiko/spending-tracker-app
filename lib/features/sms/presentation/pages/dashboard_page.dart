@@ -9,6 +9,7 @@ import '../../../../core/database/repositories/transaction_repository.dart';
 import '../../../../core/database/repositories/category_repository.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/services/user_preferences_service.dart';
+import '../../../../core/widgets/sync_status_widget.dart';
 import '../../../../dependency_injector.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -163,6 +164,10 @@ class _DashboardPageState extends State<DashboardPage>
         elevation: 0,
         centerTitle: false,
         actions: [
+          const Padding(
+            padding: EdgeInsets.only(right: 8.0),
+            child: CompactSyncStatusWidget(),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(

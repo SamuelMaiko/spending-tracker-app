@@ -42,7 +42,7 @@ class FirestoreService {
 
   // WALLET OPERATIONS
 
-  /// Upload wallet to Firestore
+  /// Upload wallet to Firestore with name-based upsert to prevent duplicates
   static Future<void> uploadWallet(db.Wallet wallet) async {
     if (!_isAuthenticated || _walletsCollection == null) {
       developer.log('❌ Cannot upload wallet: User not authenticated');
@@ -50,14 +50,29 @@ class FirestoreService {
     }
 
     try {
-      developer.log('📤 Uploading wallet: ${wallet.name}');
-      await _walletsCollection!.doc(wallet.id.toString()).set({
+      developer.log('📤 Uploading wallet (name-based upsert): ${wallet.name}');
+
+      // Find existing wallet doc by name to avoid creating duplicates
+      String targetDocId = wallet.id.toString();
+      final existing = await _walletsCollection!
+          .where('name', isEqualTo: wallet.name)
+          .limit(1)
+          .get();
+      if (existing.docs.isNotEmpty) {
+        targetDocId = existing.docs.first.id;
+        developer.log(
+          '🔄 Found existing wallet doc by name. Using docId=$targetDocId',
+        );
+      }
+
+      await _walletsCollection!.doc(targetDocId).set({
         'id': wallet.id,
         'name': wallet.name,
+        'transactionSenderName': wallet.transactionSenderName,
         'balance': wallet.amount,
         'createdAt': wallet.createdAt.toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),
-      });
+      }, SetOptions(merge: true));
       developer.log('✅ Wallet uploaded successfully');
     } catch (e) {
       developer.log('❌ Error uploading wallet: $e');
@@ -106,8 +121,14 @@ class FirestoreService {
 
   // TRANSACTION OPERATIONS
 
-  /// Upload transaction to Firestore
-  static Future<void> uploadTransaction(db.Transaction transaction) async {
+  /// Upload transaction to Firestore with deduplication by smsHash
+  static Future<void> uploadTransaction(
+    db.Transaction transaction, {
+    String? walletName,
+    String? walletSenderName,
+    String? categoryName,
+    String? categoryItemName,
+  }) async {
     if (!_isAuthenticated || _transactionsCollection == null) {
       developer.log('❌ Cannot upload transaction: User not authenticated');
       return;
@@ -115,7 +136,31 @@ class FirestoreService {
 
     try {
       developer.log('📤 Uploading transaction: ${transaction.description}');
-      await _transactionsCollection!.doc(transaction.id.toString()).set({
+
+      // Use smsHash as document ID for deduplication if available
+      String docId;
+      if (transaction.smsHash != null && transaction.smsHash!.isNotEmpty) {
+        // Check if document with this smsHash already exists
+        final existing = await _transactionsCollection!
+            .where('smsHash', isEqualTo: transaction.smsHash)
+            .limit(1)
+            .get();
+
+        if (existing.docs.isNotEmpty) {
+          docId = existing.docs.first.id;
+          developer.log(
+            '🔄 Updating existing transaction with smsHash: ${transaction.smsHash}',
+          );
+        } else {
+          // Use smsHash as stable document ID
+          docId = transaction.smsHash!;
+        }
+      } else {
+        // Fallback to local ID
+        docId = transaction.id.toString();
+      }
+
+      final data = {
         'id': transaction.id,
         'walletId': transaction.walletId,
         'categoryId': transaction.categoryItemId,
@@ -126,8 +171,16 @@ class FirestoreService {
         'createdAt': transaction.createdAt.toIso8601String(),
         'smsHash': transaction.smsHash,
         'updatedAt': DateTime.now().toIso8601String(),
-      });
-      developer.log('✅ Transaction uploaded successfully');
+        if (walletName != null) 'walletName': walletName,
+        if (walletSenderName != null) 'walletSenderName': walletSenderName,
+        if (categoryName != null) 'categoryName': categoryName,
+        if (categoryItemName != null) 'categoryItemName': categoryItemName,
+      };
+
+      await _transactionsCollection!
+          .doc(docId)
+          .set(data, SetOptions(merge: true));
+      developer.log('✅ Transaction uploaded successfully (doc: $docId)');
     } catch (e) {
       developer.log('❌ Error uploading transaction: $e');
       rethrow;

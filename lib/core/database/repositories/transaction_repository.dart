@@ -13,7 +13,7 @@ class TransactionRepository {
   Future<List<Transaction>> getAllTransactions() async {
     return await (_database.select(
       _database.transactions,
-    )..orderBy([(t) => OrderingTerm.desc(t.date)])).get();
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
   }
 
   /// Get transactions with pagination
@@ -22,7 +22,7 @@ class TransactionRepository {
     int offset = 0,
   }) async {
     return await (_database.select(_database.transactions)
-          ..orderBy([(t) => OrderingTerm.desc(t.date)])
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
           ..limit(limit, offset: offset))
         .get();
   }
@@ -41,6 +41,18 @@ class TransactionRepository {
         .getSingleOrNull();
   }
 
+  /// Get transaction by date and amount (for duplicate detection)
+  Future<Transaction?> getTransactionByDateAndAmount(
+    DateTime date,
+    double amount,
+  ) async {
+    return await (_database.select(_database.transactions)..where(
+          (transaction) =>
+              transaction.date.equals(date) & transaction.amount.equals(amount),
+        ))
+        .getSingleOrNull();
+  }
+
   /// Get the latest transaction with SMS hash (for catch-up functionality)
   Future<Transaction?> getLatestTransactionWithSmsHash() async {
     return await (_database.select(_database.transactions)
@@ -50,11 +62,19 @@ class TransactionRepository {
         .getSingleOrNull();
   }
 
+  /// Get the latest processed transaction (for catch-up functionality using date+amount)
+  Future<Transaction?> getLatestProcessedTransaction() async {
+    return await (_database.select(_database.transactions)
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   /// Get transactions by wallet ID
   Future<List<Transaction>> getTransactionsByWalletId(int walletId) async {
     return await (_database.select(_database.transactions)
           ..where((transaction) => transaction.walletId.equals(walletId))
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .get();
   }
 
@@ -62,7 +82,7 @@ class TransactionRepository {
   Future<List<Transaction>> getUncategorizedTransactions() async {
     return await (_database.select(_database.transactions)
           ..where((transaction) => transaction.status.equals('UNCATEGORIZED'))
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .get();
   }
 
@@ -77,7 +97,7 @@ class TransactionRepository {
                 transaction.date.isBiggerOrEqualValue(startDate) &
                 transaction.date.isSmallerOrEqualValue(endDate),
           )
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .get();
   }
 
@@ -124,7 +144,16 @@ class TransactionRepository {
 
   /// Update transaction
   Future<bool> updateTransaction(Transaction transaction) async {
-    return await _database.update(_database.transactions).replace(transaction);
+    final success = await _database
+        .update(_database.transactions)
+        .replace(transaction);
+
+    // Sync to cloud if enabled
+    if (success) {
+      DataSyncService.syncItemToCloud(transaction: transaction);
+    }
+
+    return success;
   }
 
   /// Update transaction with wallet balance adjustment
@@ -281,9 +310,21 @@ class TransactionRepository {
 
   /// Delete transaction
   Future<int> deleteTransaction(int id) async {
-    return await (_database.delete(
+    final result = await (_database.delete(
       _database.transactions,
     )..where((transaction) => transaction.id.equals(id))).go();
+
+    // Sync deletion to cloud
+    if (result > 0) {
+      DataSyncService.syncItemDeletionToCloud(transactionId: id.toString());
+    }
+
+    return result;
+  }
+
+  /// Delete all transactions
+  Future<void> deleteAllTransactions() async {
+    await _database.delete(_database.transactions).go();
   }
 
   /// Get transactions with full details (wallet, category, category item)
@@ -310,7 +351,7 @@ class TransactionRepository {
               ),
             ),
           ])
-          ..orderBy([OrderingTerm.desc(_database.transactions.date)])
+          ..orderBy([OrderingTerm.desc(_database.transactions.createdAt)])
           ..limit(limit, offset: offset);
 
     final results = await query.get();

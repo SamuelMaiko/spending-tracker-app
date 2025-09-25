@@ -1,7 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/constants/app_constants.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
+import 'features/auth/presentation/bloc/auth_state.dart';
 
 /// Animated splash screen with SpendTracker branding
 ///
@@ -84,12 +88,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     // Start loading animation
     _loadingController.repeat();
 
-    // Navigate to main app after splash duration
+    // Check authentication status and navigate accordingly
     Future.delayed(AppConstants.splashDuration, () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/main');
+        _checkAuthenticationAndNavigate();
       }
     });
+  }
+
+  void _checkAuthenticationAndNavigate() {
+    // Check authentication status
+    context.read<AuthBloc>().add(const AuthCheckRequested());
   }
 
   @override
@@ -102,89 +111,97 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Animated logo
-            AnimatedBuilder(
-              animation: _logoController,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _logoScaleAnimation.value,
-                  child: Opacity(
-                    opacity: _logoOpacityAnimation.value,
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.contain,
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          // User is authenticated, navigate to main app
+          Navigator.of(context).pushReplacementNamed('/main');
+        } else if (state is AuthUnauthenticated) {
+          // User is not authenticated, navigate to login page
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animated logo
+              AnimatedBuilder(
+                animation: _logoController,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _logoScaleAnimation.value,
+                    child: Opacity(
+                      opacity: _logoOpacityAnimation.value,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
 
-            // const SizedBox(height: 32),
+              // const SizedBox(height: 32),
 
-            // // Animated text
-            // AnimatedBuilder(
-            //   animation: _textController,
-            //   builder: (context, child) {
-            //     return Opacity(
-            //       opacity: _textOpacityAnimation.value,
-            //       child: Text(
-            //         'Spending Tracker',
-            //         style: TextStyle(
-            //           fontSize: 32,
-            //           fontWeight: FontWeight.w700,
-            //           color: Colors.grey.shade800,
-            //           letterSpacing: 1.2,
-            //         ),
-            //       ),
-            //     );
-            //   },
-            // ),
+              // // Animated text
+              // AnimatedBuilder(
+              //   animation: _textController,
+              //   builder: (context, child) {
+              //     return Opacity(
+              //       opacity: _textOpacityAnimation.value,
+              //       child: Text(
+              //         'Spending Tracker',
+              //         style: TextStyle(
+              //           fontSize: 32,
+              //           fontWeight: FontWeight.w700,
+              //           color: Colors.grey.shade800,
+              //           letterSpacing: 1.2,
+              //         ),
+              //       ),
+              //     );
+              //   },
+              // ),
 
-            // const SizedBox(height: 60),
+              // const SizedBox(height: 60),
 
-            // Simple loading indicator
-            // AnimatedBuilder(
-            //   animation: _loadingController,
-            //   builder: (context, child) {
-            //     return Row(
-            //       mainAxisAlignment: MainAxisAlignment.center,
-            //       children: List.generate(3, (index) {
-            //         final delay = index * 0.3;
-            //         final animValue =
-            //             (_loadingRotationAnimation.value + delay) % 1.0;
-            //         final scale =
-            //             0.5 + (0.5 * math.sin(animValue * 2 * 3.14159));
+              // Simple loading indicator
+              // AnimatedBuilder(
+              //   animation: _loadingController,
+              //   builder: (context, child) {
+              //     return Row(
+              //       mainAxisAlignment: MainAxisAlignment.center,
+              //       children: List.generate(3, (index) {
+              //         final delay = index * 0.3;
+              //         final animValue =
+              //             (_loadingRotationAnimation.value + delay) % 1.0;
+              //         final scale =
+              //             0.5 + (0.5 * math.sin(animValue * 2 * 3.14159));
 
-            //         return Container(
-            //           margin: const EdgeInsets.symmetric(horizontal: 4),
-            //           child: Transform.scale(
-            //             scale: scale,
-            //             child: Container(
-            //               width: 8,
-            //               height: 8,
-            //               decoration: BoxDecoration(
-            //                 color: Colors.grey.shade400,
-            //                 shape: BoxShape.circle,
-            //               ),
-            //             ),
-            //           ),
-            //         );
-            //       }),
-            //     );
-            //   },
-            // ),
-          ],
+              //         return Container(
+              //           margin: const EdgeInsets.symmetric(horizontal: 4),
+              //           child: Transform.scale(
+              //             scale: scale,
+              //             child: Container(
+              //               width: 8,
+              //               height: 8,
+              //               decoration: BoxDecoration(
+              //                 color: Colors.grey.shade400,
+              //                 shape: BoxShape.circle,
+              //               ),
+              //             ),
+              //           ),
+              //         );
+              //       }),
+              //     );
+              //   },
+              // ),
+            ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import 'core/database/repositories/category_repository.dart';
 import 'core/services/sms_catchup_service.dart';
 import 'core/services/firestore_service.dart';
 import 'core/services/sync_settings_service.dart';
+import 'core/services/sync_status_service.dart';
 import 'core/services/data_sync_service.dart';
 import 'features/sms/data/datasources/sms_datasource.dart';
 import 'features/sms/data/repositories/sms_repository_impl.dart';

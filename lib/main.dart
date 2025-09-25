@@ -7,10 +7,13 @@ import 'core/services/telephony_sms_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/navigation_service.dart';
 import 'core/services/sms_catchup_service.dart';
+import 'core/services/sync_status_service.dart';
+import 'core/services/data_sync_service.dart';
 import 'dependency_injector.dart';
 import 'features/sms/presentation/bloc/sms_bloc.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/sms/presentation/pages/main_app_page.dart';
+import 'features/auth/presentation/pages/google_login_page.dart';
 import 'welcome_screen.dart';
 
 /// Main entry point of the SpendTracker application
@@ -27,6 +30,12 @@ void main() async {
 
   // Initialize notification service
   await NotificationService.initialize();
+
+  // Initialize sync status service
+  await SyncStatusService.initialize();
+
+  // Initialize connectivity-aware sync
+  DataSyncService.initializeConnectivitySync();
 
   // Initialize telephony SMS service for background SMS handling
   try {
@@ -112,6 +121,7 @@ class SpendTrackerApp extends StatelessWidget {
         routes: {
           '/': (context) => const WelcomeScreen(),
           '/main': (context) => const MainAppPage(),
+          '/login': (context) => const LoginPage(),
         },
       ),
     );

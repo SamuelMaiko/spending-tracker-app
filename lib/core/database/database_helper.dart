@@ -134,13 +134,13 @@ class AppDatabase extends _$AppDatabase {
 
     // Insert default wallets
     final defaultWallets = [
-      {'name': 'M-Pesa', 'transaction_sender_name': 'MPESA', 'amount': 1000.0},
+      {'name': 'M-Pesa', 'transaction_sender_name': 'MPESA', 'amount': 0.0},
       {
         'name': 'Pochi La Biashara',
         'transaction_sender_name': 'MPESA',
-        'amount': 500.0,
+        'amount': 0.0,
       },
-      {'name': 'M-Shwari', 'transaction_sender_name': 'MPESA', 'amount': 200.0},
+      {'name': 'M-Shwari', 'transaction_sender_name': 'MPESA', 'amount': 0.0},
       {'name': 'SC BANK', 'transaction_sender_name': 'MPESA', 'amount': 0.0},
       {
         'name': 'EQUITY BANK',

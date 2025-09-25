@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:developer' as developer;
@@ -84,9 +85,13 @@ class FirebaseAuthService {
         return null;
       }
 
+      developer.log('✅ Google account selected: ${googleUser.email}');
+
       // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+
+      developer.log('✅ Google authentication obtained');
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -94,8 +99,12 @@ class FirebaseAuthService {
         idToken: googleAuth.idToken,
       );
 
+      developer.log('✅ Firebase credential created');
+
       // Sign in to Firebase with the Google credential
       final userCredential = await _auth.signInWithCredential(credential);
+
+      developer.log('✅ Firebase sign in completed');
 
       // Store user information locally
       if (userCredential.user != null) {
@@ -134,6 +143,27 @@ class FirebaseAuthService {
       developer.log('✅ Successfully signed out');
     } catch (e) {
       developer.log('❌ Error during sign out: $e');
+      rethrow;
+    }
+  }
+
+  /// Disconnect Google account (revokes access)
+  static Future<void> disconnect() async {
+    try {
+      developer.log('🔐 Disconnecting Google account');
+
+      // Disconnect from Google Sign-In (revokes access)
+      await _googleSignIn.disconnect();
+
+      // Sign out from Firebase
+      await _auth.signOut();
+
+      // Clear local user data
+      await UserPreferencesService.clearUserData();
+
+      developer.log('✅ Successfully disconnected');
+    } catch (e) {
+      developer.log('❌ Error during disconnect: $e');
       rethrow;
     }
   }

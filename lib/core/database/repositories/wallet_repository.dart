@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../database_helper.dart';
+import '../../services/data_sync_service.dart';
 
 /// Repository for managing wallet data using Drift ORM
 class WalletRepository {
@@ -14,9 +15,9 @@ class WalletRepository {
 
   /// Get wallet by ID
   Future<Wallet?> getWalletById(int id) async {
-    return await (_database.select(_database.wallets)
-          ..where((wallet) => wallet.id.equals(id)))
-        .getSingleOrNull();
+    return await (_database.select(
+      _database.wallets,
+    )..where((wallet) => wallet.id.equals(id))).getSingleOrNull();
   }
 
   /// Get wallet by transaction sender name
@@ -32,51 +33,85 @@ class WalletRepository {
     required String transactionSenderName,
     double amount = 0.0,
   }) async {
-    return await _database.into(_database.wallets).insert(
+    final walletId = await _database
+        .into(_database.wallets)
+        .insert(
           WalletsCompanion.insert(
             name: name,
             transactionSenderName: transactionSenderName,
             amount: Value(amount),
           ),
         );
+
+    // Sync to cloud if enabled
+    try {
+      final wallet = await getWalletById(walletId);
+      if (wallet != null) {
+        DataSyncService.syncItemToCloud(wallet: wallet);
+      }
+    } catch (e) {
+      // Sync failure shouldn't affect the wallet creation
+    }
+
+    return walletId;
   }
 
   /// Update wallet
   Future<bool> updateWallet(Wallet wallet) async {
-    return await _database.update(_database.wallets).replace(wallet);
+    final success = await _database.update(_database.wallets).replace(wallet);
+
+    // Sync to cloud if enabled
+    if (success) {
+      DataSyncService.syncItemToCloud(wallet: wallet);
+    }
+
+    return success;
   }
 
   /// Update wallet balance
   Future<bool> updateWalletBalance(int walletId, double newBalance) async {
-    return await (_database.update(_database.wallets)
-          ..where((wallet) => wallet.id.equals(walletId)))
-        .write(
-      WalletsCompanion(
-        amount: Value(newBalance),
-        updatedAt: Value(DateTime.now()),
-      ),
-    ) >
+    return await (_database.update(
+          _database.wallets,
+        )..where((wallet) => wallet.id.equals(walletId))).write(
+          WalletsCompanion(
+            amount: Value(newBalance),
+            updatedAt: Value(DateTime.now()),
+          ),
+        ) >
         0;
   }
 
   /// Delete wallet
   Future<int> deleteWallet(int id) async {
-    return await (_database.delete(_database.wallets)
-          ..where((wallet) => wallet.id.equals(id)))
-        .go();
+    final result = await (_database.delete(
+      _database.wallets,
+    )..where((wallet) => wallet.id.equals(id))).go();
+
+    // Sync deletion to cloud
+    if (result > 0) {
+      DataSyncService.syncItemDeletionToCloud(walletId: id.toString());
+    }
+
+    return result;
+  }
+
+  /// Delete all wallets
+  Future<void> deleteAllWallets() async {
+    await _database.delete(_database.wallets).go();
   }
 
   /// Get total balance across all wallets
   Future<double> getTotalBalance() async {
     final query = _database.selectOnly(_database.wallets)
       ..addColumns([_database.wallets.amount.sum()]);
-    
+
     final result = await query.getSingle();
     return result.read(_database.wallets.amount.sum()) ?? 0.0;
   }
 
   /// Get wallets with their transaction counts
-  Future<List<WalletWithTransactionCount>> getWalletsWithTransactionCounts() async {
+  Future<List<WalletWithTransactionCount>>
+  getWalletsWithTransactionCounts() async {
     final query = _database.select(_database.wallets).join([
       leftOuterJoin(
         _database.transactions,
@@ -97,7 +132,9 @@ class WalletRepository {
     return walletGroups.entries.map((entry) {
       final wallet = entry.value.first.readTable(_database.wallets);
       final transactionCount = entry.value
-          .where((result) => result.readTableOrNull(_database.transactions) != null)
+          .where(
+            (result) => result.readTableOrNull(_database.transactions) != null,
+          )
           .length;
 
       return WalletWithTransactionCount(

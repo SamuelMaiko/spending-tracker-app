@@ -34,16 +34,8 @@ class SmsTransactionParser {
         return;
       }
 
-      // Generate SMS hash for duplicate detection
+      // Generate SMS hash for duplicate detection (keep for backward compatibility)
       final smsHash = _generateSmsHash(message);
-
-      // Check if transaction with this hash already exists
-      final existingTransaction = await _transactionRepository
-          .getTransactionBySmsHash(smsHash);
-      if (existingTransaction != null) {
-        print('ℹ️ Transaction with hash $smsHash already exists, skipping');
-        return;
-      }
 
       print('💰 Processing MPESA transaction...');
       await _parseMpesaTransaction(message, null, smsHash);
@@ -220,6 +212,16 @@ class SmsTransactionParser {
         return;
       }
 
+      // Check for duplicate using date and amount
+      final existingTransaction = await _transactionRepository
+          .getTransactionByDateAndAmount(date, amount);
+      if (existingTransaction != null) {
+        log(
+          'ℹ️ Transaction with date $date and amount $amount already exists, skipping',
+        );
+        return;
+      }
+
       log('💰 Processing RECEIVED TRANSACTION: KSh$amount to $walletName');
 
       // Let user manually categorize received transactions
@@ -263,6 +265,16 @@ class SmsTransactionParser {
         return;
       }
 
+      // Check for duplicate using date and amount
+      final existingTransaction = await _transactionRepository
+          .getTransactionByDateAndAmount(date, amount);
+      if (existingTransaction != null) {
+        log(
+          'ℹ️ Transaction with date $date and amount $amount already exists, skipping',
+        );
+        return;
+      }
+
       log('💳 Processing PAYMENT TRANSACTION: KSh$amount from $walletName');
 
       // Create DEBIT transaction
@@ -298,6 +310,16 @@ class SmsTransactionParser {
 
       if (amount == null || date == null) {
         log('❌ Could not extract amount or date from sent message');
+        return;
+      }
+
+      // Check for duplicate using date and amount
+      final existingTransaction = await _transactionRepository
+          .getTransactionByDateAndAmount(date, amount);
+      if (existingTransaction != null) {
+        log(
+          'ℹ️ Transaction with date $date and amount $amount already exists, skipping',
+        );
         return;
       }
 

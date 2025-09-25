@@ -1,3 +1,5 @@
+auth_block.dart
+
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -200,9 +202,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Enable sync by default for new sign-ins
       await SyncSettingsService.setSyncEnabled(true);
 
-      // Perform proper sign-in sync flow
+      // Perform initial sync
       final syncService = sl<DataSyncService>();
-      await syncService.performSignInSync();
+      await syncService.performInitialSync();
 
       developer.log('✅ Sync initialization completed');
     } catch (e) {
@@ -217,3 +219,137 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     return super.close();
   }
 }
+
+
+auth_event.dart
+
+import 'package:equatable/equatable.dart';
+
+/// Base class for authentication events
+abstract class AuthEvent extends Equatable {
+  const AuthEvent();
+
+  @override
+  List<Object?> get props => [];
+}
+
+/// Event to check authentication status
+class AuthCheckRequested extends AuthEvent {
+  const AuthCheckRequested();
+}
+
+/// Event to sign in with email and password
+class AuthSignInRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  const AuthSignInRequested({required this.email, required this.password});
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
+/// Event to create account with email and password
+class AuthSignUpRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  const AuthSignUpRequested({required this.email, required this.password});
+
+  @override
+  List<Object?> get props => [email, password];
+}
+
+/// Event to sign in with Google
+class AuthGoogleSignInRequested extends AuthEvent {
+  const AuthGoogleSignInRequested();
+}
+
+/// Event to sign out
+class AuthSignOutRequested extends AuthEvent {
+  const AuthSignOutRequested();
+}
+
+/// Event to send password reset email
+class AuthPasswordResetRequested extends AuthEvent {
+  final String email;
+
+  const AuthPasswordResetRequested({required this.email});
+
+  @override
+  List<Object?> get props => [email];
+}
+
+/// Event when authentication state changes
+class AuthStateChanged extends AuthEvent {
+  final String? userId;
+
+  const AuthStateChanged({this.userId});
+
+  @override
+  List<Object?> get props => [userId];
+}
+
+
+
+auth_start.dart:
+
+import 'package:equatable/equatable.dart';
+
+/// Base class for authentication states
+abstract class AuthState extends Equatable {
+  const AuthState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+/// Initial authentication state
+class AuthInitial extends AuthState {
+  const AuthInitial();
+}
+
+/// Authentication loading state
+class AuthLoading extends AuthState {
+  const AuthLoading();
+}
+
+/// User is authenticated
+class AuthAuthenticated extends AuthState {
+  final String userId;
+  final String? email;
+
+  const AuthAuthenticated({
+    required this.userId,
+    this.email,
+  });
+
+  @override
+  List<Object?> get props => [userId, email];
+}
+
+/// User is not authenticated
+class AuthUnauthenticated extends AuthState {
+  const AuthUnauthenticated();
+}
+
+/// Authentication error state
+class AuthError extends AuthState {
+  final String message;
+
+  const AuthError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
+
+/// Password reset email sent successfully
+class AuthPasswordResetSent extends AuthState {
+  final String email;
+
+  const AuthPasswordResetSent({required this.email});
+
+  @override
+  List<Object?> get props => [email];
+}
+

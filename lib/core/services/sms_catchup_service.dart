@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'dart:developer';
-import 'package:crypto/crypto.dart';
 import 'package:another_telephony/telephony.dart';
 import '../database/repositories/transaction_repository.dart';
 import '../../features/sms/domain/services/sms_transaction_parser.dart';
@@ -23,33 +21,52 @@ class SmsCatchupService {
     try {
       log('🔄 Starting SMS catch-up process...');
 
-      // Get the latest transaction with SMS hash to determine where to start
+      // Get the latest processed transaction to determine where to start
       final latestTransaction = await _transactionRepository
-          .getLatestTransactionWithSmsHash();
+          .getLatestProcessedTransaction();
 
-      DateTime? lastProcessedDate;
+      DateTime lastProcessedDate;
       if (latestTransaction != null) {
-        lastProcessedDate = latestTransaction.date;
-        log('📅 Last processed SMS date: $lastProcessedDate');
+        lastProcessedDate = latestTransaction.createdAt;
+        log('📅 Last processed transaction date: $lastProcessedDate');
       } else {
-        // If no transactions with SMS hash exist, start from 0 seconds ago
+        // If no transactions exist, start from 7 days ago to catch recent SMS
         lastProcessedDate = DateTime.now().subtract(const Duration(seconds: 0));
         log(
-          '📅 No previous SMS transactions found, starting from 0 seconds ago: $lastProcessedDate',
+          '📅 No previous transactions found, starting from 7 days ago: $lastProcessedDate',
         );
       }
 
       // Get SMS messages from MPESA since the last processed date
-      final smsMessages = await _telephony.getInboxSms(
+      // First, get all MPESA messages
+      final allMpesaMessages = await _telephony.getInboxSms(
         columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
-        filter: SmsFilter.where(SmsColumn.ADDRESS)
-            .like('%MPESA%')
-            .and(SmsColumn.DATE)
-            .greaterThan(lastProcessedDate.millisecondsSinceEpoch.toString()),
+        filter: SmsFilter.where(SmsColumn.ADDRESS).like('%MPESA%'),
         sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.ASC)],
       );
 
-      log('📱 Found ${smsMessages.length} SMS messages to process');
+      log('📱 Found ${allMpesaMessages.length} total MPESA SMS messages');
+
+      // Filter messages that are newer than the last processed date
+      final smsMessages = allMpesaMessages.where((sms) {
+        final smsDate = DateTime.fromMillisecondsSinceEpoch(sms.date ?? 0);
+        final isNewer = smsDate.isAfter(lastProcessedDate);
+        if (isNewer) {
+          log(
+            '📱 SMS to process: ${smsDate} - ${(sms.body ?? '').substring(0, (sms.body ?? '').length > 50 ? 50 : (sms.body ?? '').length)}...',
+          );
+        }
+        return isNewer;
+      }).toList();
+
+      log(
+        '📱 Found ${smsMessages.length} SMS messages to process after filtering',
+      );
+
+      if (smsMessages.isEmpty) {
+        log('ℹ️ No new SMS messages to process. All caught up!');
+        return;
+      }
 
       int processedCount = 0;
       int skippedCount = 0;
@@ -66,19 +83,7 @@ class SmsCatchupService {
             type: (sms.type as int?) ?? 1, // 1 = inbox message
           );
 
-          // Generate SMS hash to check if already processed
-          final smsHash = _generateSmsHash(smsMessage);
-
-          // Check if transaction with this hash already exists
-          final existingTransaction = await _transactionRepository
-              .getTransactionBySmsHash(smsHash);
-
-          if (existingTransaction != null) {
-            skippedCount++;
-            continue;
-          }
-
-          // Process the SMS message
+          // Process the SMS message (duplicate detection now handled in parser)
           await _smsTransactionParser.parseAndCreateTransaction(smsMessage);
           processedCount++;
 
@@ -96,14 +101,5 @@ class SmsCatchupService {
     } catch (e) {
       log('❌ Error during SMS catch-up: $e');
     }
-  }
-
-  /// Generate SMS hash for duplicate detection (same logic as in parser)
-  String _generateSmsHash(entities.SmsMessage message) {
-    // Create a unique hash based on sender, body, and timestamp
-    final hashInput = '${message.address}|${message.body}|${message.date}';
-    final bytes = utf8.encode(hashInput);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
   }
 }

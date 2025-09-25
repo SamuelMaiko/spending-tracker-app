@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../database_helper.dart';
+import '../../services/data_sync_service.dart';
 
 /// Repository for managing category and category item data using Drift ORM
 class CategoryRepository {
@@ -28,14 +29,35 @@ class CategoryRepository {
 
   /// Create a new category
   Future<int> createCategory(String name) async {
-    return await _database
+    final categoryId = await _database
         .into(_database.categories)
         .insert(CategoriesCompanion.insert(name: name));
+
+    // Sync to cloud if enabled
+    try {
+      final category = await getCategoryById(categoryId);
+      if (category != null) {
+        DataSyncService.syncItemToCloud(category: category);
+      }
+    } catch (e) {
+      // Sync failure shouldn't affect the category creation
+    }
+
+    return categoryId;
   }
 
   /// Update category
   Future<bool> updateCategory(Category category) async {
-    return await _database.update(_database.categories).replace(category);
+    final success = await _database
+        .update(_database.categories)
+        .replace(category);
+
+    // Sync to cloud if enabled
+    if (success) {
+      DataSyncService.syncItemToCloud(category: category);
+    }
+
+    return success;
   }
 
   /// Delete category (will cascade delete category items and update transactions)
@@ -58,9 +80,16 @@ class CategoryRepository {
     )..where((item) => item.categoryId.equals(id))).go();
 
     // Finally, delete the category
-    return await (_database.delete(
+    final result = await (_database.delete(
       _database.categories,
     )..where((category) => category.id.equals(id))).go();
+
+    // Sync deletion to cloud
+    if (result > 0) {
+      DataSyncService.syncItemDeletionToCloud(categoryId: id.toString());
+    }
+
+    return result;
   }
 
   /// Get all category items
@@ -108,6 +137,16 @@ class CategoryRepository {
     return await (_database.delete(
       _database.categoryItems,
     )..where((item) => item.id.equals(id))).go();
+  }
+
+  /// Delete all categories
+  Future<void> deleteAllCategories() async {
+    await _database.delete(_database.categories).go();
+  }
+
+  /// Delete all category items
+  Future<void> deleteAllCategoryItems() async {
+    await _database.delete(_database.categoryItems).go();
   }
 
   /// Get categories with their items

@@ -5,7 +5,7 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 
-/// Login page for Google Sign-In authentication
+/// Simple login page with animated text and Google Sign-In
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -13,21 +13,94 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _textAnimation;
+
+  final List<Map<String, dynamic>> _texts = [
+    {
+      "text": "Let's track",
+      "textColor": const Color(0xFF2196F3), // Blue
+      "dotColor": const Color(0xFF4CAF50), // Green
+    },
+    {
+      "text": "Let's save",
+      "textColor": const Color(0xFF9C27B0), // Purple
+      "dotColor": const Color(0xFFFF9800), // Orange
+    },
+    {
+      "text": "Let's grow",
+      "textColor": const Color(0xFF4CAF50), // Green
+      "dotColor": const Color(0xFFE91E63), // Pink
+    },
+    {
+      "text": "Let's invest",
+      "textColor": const Color(0xFFFF5722), // Deep Orange
+      "dotColor": const Color(0xFF2196F3), // Blue
+    },
+  ];
+
+  int _currentTextIndex = 0;
+  bool _isErasing = false;
+
   void _signInWithGoogle() {
     context.read<AuthBloc>().add(const AuthGoogleSignInRequested());
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize animation controller
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    // Create animation
+    _textAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Start the animation cycle
+    _startAnimationCycle();
+  }
+
+  void _startAnimationCycle() async {
+    while (mounted) {
+      // Show text
+      _isErasing = false;
+      await _animationController.forward();
+
+      // Wait a bit
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      // Erase text
+      _isErasing = true;
+      await _animationController.reverse();
+
+      // Move to next text
+      if (mounted) {
+        setState(() {
+          _currentTextIndex = (_currentTextIndex + 1) % _texts.length;
+        });
+      }
+
+      // Wait a bit before next cycle
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Sign In'),
-        backgroundColor: const Color(0xFF0288D1),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
@@ -43,173 +116,112 @@ class _LoginPageState extends State<LoginPage> {
         },
         child: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+            return SafeArea(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 40),
-                  
-                  // App logo and title
-                  Container(
-                    alignment: Alignment.center,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF2196F3), Color(0xFF4CAF50)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                          child: const Icon(
-                            Icons.account_balance_wallet,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'SpendTracker',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0288D1),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Sign in to sync your data across devices',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 60),
-                  
-                  // Benefits section
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue[100]!),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Why sign in?',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0288D1),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildBenefitItem(
-                          Icons.cloud_sync,
-                          'Sync data across devices',
-                          'Access your transactions on any device',
-                        ),
-                        const SizedBox(height: 12),
-                        _buildBenefitItem(
-                          Icons.backup,
-                          'Automatic backup',
-                          'Never lose your financial data',
-                        ),
-                        const SizedBox(height: 12),
-                        _buildBenefitItem(
-                          Icons.phone_android,
-                          'New device setup',
-                          'Easily restore data on new devices',
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  // Google Sign-In button
-                  SizedBox(
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: state is AuthLoading ? null : _signInWithGoogle,
-                      icon: state is AuthLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  // Main content area with animated text
+                  Expanded(
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _textAnimation,
+                        builder: (context, child) {
+                          final currentTextData = _texts[_currentTextIndex];
+                          final currentText = currentTextData['text'] as String;
+                          final textColor =
+                              currentTextData['textColor'] as Color;
+                          final dotColor = currentTextData['dotColor'] as Color;
+
+                          final visibleLength =
+                              (_textAnimation.value * currentText.length)
+                                  .round();
+                          final displayText = _isErasing
+                              ? currentText.substring(
+                                  0,
+                                  currentText.length - visibleLength,
+                                )
+                              : currentText.substring(0, visibleLength);
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                displayText,
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                ),
                               ),
-                            )
-                          : const Icon(Icons.login, color: Colors.white),
-                      label: Text(
-                        state is AuthLoading ? 'Signing in...' : 'Sign in with Google',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0288D1),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Skip sign in option
-                  TextButton(
-                    onPressed: state is AuthLoading 
-                        ? null 
-                        : () => Navigator.of(context).pushReplacementNamed('/main'),
-                    child: const Text(
-                      'Continue without signing in',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
+                              // Animated dot - larger size (half the height of text)
+                              Container(
+                                width: 16, // Larger dot
+                                height: 16, // Larger dot
+                                margin: const EdgeInsets.only(
+                                  left: 4,
+                                  bottom: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: dotColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Note about local data
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Your data is stored locally on this device. Sign in to enable cloud sync.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black87,
+
+                  // Bottom button area
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: state is AuthLoading
+                            ? null
+                            : _signInWithGoogle,
+                        icon: state is AuthLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.grey,
+                                  ),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.login,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                        label: Text(
+                          state is AuthLoading
+                              ? 'Signing in...'
+                              : 'Continue with Google',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black87,
+                          elevation: 2,
+                          shadowColor: Colors.black26,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            side: const BorderSide(
+                              color: Colors.grey,
+                              width: 0.5,
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
@@ -218,43 +230,6 @@ class _LoginPageState extends State<LoginPage> {
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildBenefitItem(IconData icon, String title, String description) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0288D1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              Text(
-                description,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
