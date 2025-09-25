@@ -840,9 +840,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   Widget _buildExpandableCategoryItem(CategorySpending category) {
     final isExpanded = _expandedCategories.contains(category.categoryName);
-    final percentage = _totalSpentThisMonth > 0
-        ? (category.amount / _totalSpentThisMonth) * 100
-        : 0.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -856,9 +853,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           InkWell(
             onTap: () {
               setState(() {
-                if (isExpanded) {
-                  _expandedCategories.remove(category.categoryName);
-                } else {
+                // Close all other expanded categories (only one open at a time)
+                _expandedCategories.clear();
+                if (!isExpanded) {
                   _expandedCategories.add(category.categoryName);
                 }
               });
@@ -887,25 +884,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       ),
                     ),
                   ),
-                  // Amount and percentage
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'KSh ${category.amount.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '${percentage.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+                  // Amount
+                  Text(
+                    'KSh ${category.amount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   // Expand/collapse icon
@@ -932,9 +917,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         children: [
           const Divider(),
           const SizedBox(height: 8),
-          // Category items section
-          FutureBuilder<List<CategoryItem>>(
-            future: _getCategoryItems(category.categoryName),
+          // Category items section with amounts
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _getCategoryItemsWithAmounts(category.categoryName),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -958,7 +943,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 );
               }
 
-              final categoryItems = snapshot.data!;
+              final categoryItemsWithAmounts = snapshot.data!;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -971,70 +956,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...categoryItems.map((item) => _buildCategoryItemRow(item)),
-                  const SizedBox(height: 16),
-                  // Transactions section
-                  FutureBuilder<List<Transaction>>(
-                    future: _getCategoryTransactions(category.categoryName),
-                    builder: (context, transactionSnapshot) {
-                      if (transactionSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      if (!transactionSnapshot.hasData ||
-                          transactionSnapshot.data!.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text(
-                            'No transactions found',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        );
-                      }
-
-                      final transactions = transactionSnapshot.data!;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Recent Transactions (${transactions.length}):',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...transactions
-                              .take(5)
-                              .map(
-                                (transaction) =>
-                                    _buildTransactionRow(transaction),
-                              ),
-                          if (transactions.length > 5)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                'and ${transactions.length - 5} more...',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
+                  ...categoryItemsWithAmounts.map(
+                    (itemData) => _buildCategoryItemWithAmountRow(itemData),
                   ),
                 ],
               );
@@ -1293,7 +1216,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
   }
 
-  Future<List<Transaction>> _getCategoryTransactions(
+  Future<List<Map<String, dynamic>>> _getCategoryItemsWithAmounts(
     String categoryName,
   ) async {
     try {
@@ -1320,26 +1243,40 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
       // Get category items for this category
       final categoryItems = await _getCategoryItems(categoryName);
-      final categoryItemIds = categoryItems.map((item) => item.id).toSet();
 
-      // Filter transactions that belong to this category
-      final categoryTransactions = allTransactions.where((transaction) {
-        return transaction.categoryItemId != null &&
-            categoryItemIds.contains(transaction.categoryItemId);
-      }).toList();
+      // Calculate amount spent on each category item this month
+      final List<Map<String, dynamic>> itemsWithAmounts = [];
 
-      // Sort by date descending (most recent first)
-      categoryTransactions.sort((a, b) => b.date.compareTo(a.date));
+      for (final item in categoryItems) {
+        final itemTransactions = allTransactions.where((transaction) {
+          return transaction.categoryItemId == item.id;
+        }).toList();
 
-      return categoryTransactions;
+        final totalAmount = itemTransactions.fold<double>(
+          0.0,
+          (sum, transaction) => sum + transaction.amount,
+        );
+
+        itemsWithAmounts.add({'item': item, 'amount': totalAmount});
+      }
+
+      // Sort by amount descending (highest spending first)
+      itemsWithAmounts.sort(
+        (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+      );
+
+      return itemsWithAmounts;
     } catch (e) {
       return [];
     }
   }
 
-  Widget _buildCategoryItemRow(CategoryItem item) {
+  Widget _buildCategoryItemWithAmountRow(Map<String, dynamic> itemData) {
+    final CategoryItem item = itemData['item'];
+    final double amount = itemData['amount'];
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Container(
@@ -1354,78 +1291,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           Expanded(
             child: Text(item.name, style: const TextStyle(fontSize: 14)),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTransactionRow(Transaction transaction) {
-    final isDebit = transaction.type == 'DEBIT';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          // Transaction type icon
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isDebit ? Colors.red.shade50 : Colors.green.shade50,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              isDebit ? Icons.arrow_upward : Icons.arrow_downward,
-              size: 16,
-              color: isDebit ? Colors.red : Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Transaction details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.description ?? 'Transaction',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  _formatTransactionDate(transaction.date),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-          // Amount
           Text(
-            '${isDebit ? '-' : '+'}KSh ${transaction.amount.toStringAsFixed(0)}',
+            'KSh ${amount.toStringAsFixed(0)}',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDebit ? Colors.red : Colors.green,
+              fontWeight: FontWeight.w600,
+              color: amount > 0 ? Colors.red.shade600 : Colors.grey.shade500,
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatTransactionDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final transactionDate = DateTime(date.year, date.month, date.day);
-
-    if (transactionDate == today) {
-      return 'Today ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (transactionDate == today.subtract(const Duration(days: 1))) {
-      return 'Yesterday ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    }
   }
 }

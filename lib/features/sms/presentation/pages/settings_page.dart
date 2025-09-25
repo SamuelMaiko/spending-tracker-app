@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/repositories/category_repository.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../dependency_injector.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
+import '../../../auth/presentation/pages/google_login_page.dart';
+import '../../../../core/services/sync_settings_service.dart';
+import '../../../../core/services/data_sync_service.dart';
 import 'category_items_page.dart';
 import 'wallet_settings_page.dart';
 
@@ -21,7 +28,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   // Settings state
   bool _autoCategorizeTransactions = true;
-  bool _syncWithCloud = false;
 
   // Category repository
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
@@ -151,20 +157,28 @@ class _SettingsPageState extends State<SettingsPage> {
                     'Sync with cloud',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
-                  trailing: Switch(
-                    value: _syncWithCloud,
-                    onChanged: (value) {
-                      if (value) {
-                        // Show Google Sign-in dialog when enabling sync
-                        _showGoogleSignInDialog();
-                      } else {
-                        // Disable sync directly
-                        setState(() {
-                          _syncWithCloud = false;
-                        });
-                      }
+                  trailing: BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, authState) {
+                      final isAuthenticated = authState is AuthAuthenticated;
+                      return Switch(
+                        value: isAuthenticated,
+                        onChanged: (value) async {
+                          if (value) {
+                            // Show Google Sign-in dialog when enabling sync
+                            _showGoogleSignInDialog();
+                          } else {
+                            // Sign out and disable sync when toggling off
+                            await SyncSettingsService.setSyncEnabled(false);
+                            if (mounted) {
+                              context.read<AuthBloc>().add(
+                                const AuthSignOutRequested(),
+                              );
+                            }
+                          }
+                        },
+                        activeThumbColor: const Color(0xFF2196F3),
+                      );
                     },
-                    activeThumbColor: const Color(0xFF2196F3),
                   ),
                 ),
               ),
@@ -585,7 +599,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showGoogleSignInDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -595,27 +609,29 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Google logo and title
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: Icon(
-                    Icons.cloud_sync,
-                    size: 32,
-                    color: Colors.blue.shade600,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Sync with Cloud',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                // Header with close button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Sync with Cloud',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
+                // Description
                 const Text(
                   'Sign in with Google to sync your transactions across devices and keep your data safe in the cloud.',
                   style: TextStyle(
@@ -623,34 +639,45 @@ class _SettingsPageState extends State<SettingsPage> {
                     color: Colors.grey,
                     height: 1.4,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                // Sign in button
+                // Benefits list
+                _buildBenefitItem('Automatic backup of all transactions'),
+                const SizedBox(height: 12),
+                _buildBenefitItem('Access from multiple devices'),
+                const SizedBox(height: 12),
+                _buildBenefitItem('Secure encrypted storage'),
+                const SizedBox(height: 12),
+                _buildBenefitItem('Never lose your financial data'),
+                const SizedBox(height: 32),
+                // Continue with Google button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Implement Google Sign-in logic
                       _handleGoogleSignIn();
                     },
-                    icon: const Icon(
-                      Icons.account_circle,
-                      size: 20,
-                      color: Colors.blue,
+                    icon: Container(
+                      width: 18,
+                      height: 18,
+                      child: const Icon(
+                        Icons.account_circle,
+                        size: 18,
+                        color: Colors.blue,
+                      ),
                     ),
                     label: const Text(
-                      'Sign in with Google',
+                      'Continue with Google',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black87,
-                      elevation: 2,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 1,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: BorderSide(color: Colors.grey.shade300),
@@ -658,8 +685,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                // Cancel button
+                const SizedBox(height: 16),
+                // Skip for now button
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
@@ -667,10 +694,21 @@ class _SettingsPageState extends State<SettingsPage> {
                       Navigator.of(context).pop();
                     },
                     child: const Text(
-                      'Cancel',
+                      'Skip for now',
                       style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                // Terms and privacy
+                const Text(
+                  'By signing in, you agree to our Terms of Service and Privacy Policy. Your financial data is encrypted and secure.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -681,25 +719,35 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _handleGoogleSignIn() async {
-    // TODO: Implement actual Google Sign-in logic here
-    // For now, just simulate successful sign-in
-
-    // Close the dialog
+    // Close the dialog first
     Navigator.of(context).pop();
 
-    // Enable sync
-    setState(() {
-      _syncWithCloud = true;
-    });
+    // Navigate to login page
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const LoginPage()));
+  }
 
-    // Show success message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Successfully signed in! Cloud sync is now enabled.'),
-          backgroundColor: Colors.green,
+  Widget _buildBenefitItem(String text) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: Colors.green,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.check, color: Colors.white, size: 14),
         ),
-      );
-    }
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
   }
 }

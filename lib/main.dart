@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/services/telephony_sms_service.dart';
@@ -9,6 +9,7 @@ import 'core/services/navigation_service.dart';
 import 'core/services/sms_catchup_service.dart';
 import 'dependency_injector.dart';
 import 'features/sms/presentation/bloc/sms_bloc.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/sms/presentation/pages/main_app_page.dart';
 import 'welcome_screen.dart';
 
@@ -17,6 +18,9 @@ import 'welcome_screen.dart';
 /// This function initializes dependencies and starts the Flutter app
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
 
   // Initialize dependency injection
   await initializeDependencies();
@@ -56,8 +60,11 @@ class SpendTrackerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<SmsBloc>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => sl<SmsBloc>()),
+        BlocProvider(create: (context) => sl<AuthBloc>()),
+      ],
       child: MaterialApp(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,

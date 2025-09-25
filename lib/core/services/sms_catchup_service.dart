@@ -32,10 +32,10 @@ class SmsCatchupService {
         lastProcessedDate = latestTransaction.date;
         log('📅 Last processed SMS date: $lastProcessedDate');
       } else {
-        // If no transactions with SMS hash exist, start from 7 days ago
-        lastProcessedDate = DateTime.now().subtract(const Duration(days: 7));
+        // If no transactions with SMS hash exist, start from 0 seconds ago
+        lastProcessedDate = DateTime.now().subtract(const Duration(seconds: 0));
         log(
-          '📅 No previous SMS transactions found, starting from 7 days ago: $lastProcessedDate',
+          '📅 No previous SMS transactions found, starting from 0 seconds ago: $lastProcessedDate',
         );
       }
 

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../database_helper.dart';
 import 'wallet_repository.dart';
+import '../../services/data_sync_service.dart';
 
 /// Repository for managing transaction data using Drift ORM
 class TransactionRepository {
@@ -92,7 +93,7 @@ class TransactionRepository {
     String status = 'UNCATEGORIZED',
     String? smsHash,
   }) async {
-    return await _database
+    final transactionId = await _database
         .into(_database.transactions)
         .insert(
           TransactionsCompanion.insert(
@@ -107,6 +108,18 @@ class TransactionRepository {
             smsHash: Value(smsHash),
           ),
         );
+
+    // Sync to cloud if enabled
+    try {
+      final transaction = await getTransactionById(transactionId);
+      if (transaction != null) {
+        DataSyncService.syncItemToCloud(transaction: transaction);
+      }
+    } catch (e) {
+      // Sync failure shouldn't affect the transaction creation
+    }
+
+    return transactionId;
   }
 
   /// Update transaction

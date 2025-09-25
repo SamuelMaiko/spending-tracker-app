@@ -6,6 +6,9 @@ import 'core/database/repositories/wallet_repository.dart';
 import 'core/database/repositories/transaction_repository.dart';
 import 'core/database/repositories/category_repository.dart';
 import 'core/services/sms_catchup_service.dart';
+import 'core/services/firestore_service.dart';
+import 'core/services/sync_settings_service.dart';
+import 'core/services/data_sync_service.dart';
 import 'features/sms/data/datasources/sms_datasource.dart';
 import 'features/sms/data/repositories/sms_repository_impl.dart';
 import 'features/sms/domain/repositories/sms_repository.dart';
@@ -14,6 +17,7 @@ import 'features/sms/domain/usecases/listen_for_sms.dart';
 import 'features/sms/domain/usecases/request_sms_permissions.dart';
 import 'features/sms/domain/services/sms_transaction_parser.dart';
 import 'features/sms/presentation/bloc/sms_bloc.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
 
 /// Service locator instance for dependency injection
 ///
@@ -59,6 +63,14 @@ Future<void> initializeDependencies() async {
     ),
   );
 
+  sl.registerLazySingleton<DataSyncService>(
+    () => DataSyncService(
+      walletRepository: sl<WalletRepository>(),
+      transactionRepository: sl<TransactionRepository>(),
+      categoryRepository: sl<CategoryRepository>(),
+    ),
+  );
+
   // Data sources
   sl.registerLazySingleton<SmsDataSource>(() => SmsDataSourceImpl());
 
@@ -89,6 +101,8 @@ Future<void> initializeDependencies() async {
       transactionParser: sl<SmsTransactionParser>(),
     ),
   );
+
+  sl.registerFactory<AuthBloc>(() => AuthBloc());
 }
 
 /// Clean up all dependencies
