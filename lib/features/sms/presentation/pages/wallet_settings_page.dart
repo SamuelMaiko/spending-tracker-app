@@ -258,7 +258,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
         return const AssetImage('assets/images/mpesa_logo.png');
       case 'pochi la biashara':
       case 'pochi':
-        return const AssetImage('assets/images/pochi_logo.png');
+        return const AssetImage('assets/images/pochi_logo.jpeg');
       case 'm-shwari':
         return const AssetImage('assets/images/mshwari_logo.png');
       case 'sc bank':
@@ -266,7 +266,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
       case 'equity bank':
         return const AssetImage('assets/images/equity_bank_logo.png');
       case 'cash':
-        return const AssetImage('assets/images/cash_logo.png');
+        return const AssetImage('assets/images/cash_logo.jpeg');
       default:
         return const AssetImage('assets/images/default_wallet_logo.png');
     }

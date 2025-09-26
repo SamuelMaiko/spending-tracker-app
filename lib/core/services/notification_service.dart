@@ -96,7 +96,7 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/ic_stat_notification',
       color: Color(0xFF0288D1),
       actions: <AndroidNotificationAction>[
         AndroidNotificationAction(

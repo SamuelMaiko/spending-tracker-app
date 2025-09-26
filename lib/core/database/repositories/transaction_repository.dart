@@ -13,7 +13,7 @@ class TransactionRepository {
   Future<List<Transaction>> getAllTransactions() async {
     return await (_database.select(
       _database.transactions,
-    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+    )..orderBy([(t) => OrderingTerm.desc(t.date)])).get();
   }
 
   /// Get transactions with pagination
@@ -359,7 +359,7 @@ class TransactionRepository {
               ),
             ),
           ])
-          ..orderBy([OrderingTerm.desc(_database.transactions.createdAt)])
+          ..orderBy([OrderingTerm.desc(_database.transactions.date)])
           ..limit(limit, offset: offset);
 
     final results = await query.get();
