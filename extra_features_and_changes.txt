@@ -1,0 +1,42 @@
+For the analytics page, the filters should be moved from the app bar to above the summary cards to provide more room because we are about to add additional filters,
+ then another filter should be added for "weekly" and "monthly" which will default to "weekly".
+
+(ensure any new data added during the updates i.e new fields or models are corrected integrated well with firebase i.e during sync or storing in local db after user login)
+
+ For monthly it is already handled as that is hte current data. When monthly is selected, the filter for months
+  will be visibly, when weekly is selected the months filter will change to weeks showing e.g "This week", "last week",
+   "Sep 2025 wk 4" (only show last 4 weeks similar to the months one and should be a modal sheet from the bottom)
+
+
+
+when the monthly filter is on, we'll show all the data in the analytics page except the "Daily spending" chart.
+When it is weekly, we'll show everything there including the "Monthly Spending Trend" chart but the data will change to match weeks
+
+also for the monthly spending trend chart, please also show the value when one clicks on the bar and instead of e.g instead 1.5k show 1500
+
+another feature we'll add is "weekly spending limit"
+we should also introduce another model to manage the storing of weekly targets, whereby is stores the week start and end and the value set
+
+a user can view and edit the week targets in a page linked in the app's settings page, they can only edit the current week's target, in the
+target card also show by how much the user went aboard or below the limit e.g +200, -150 you get me
+
+
+then now in the analytics page, only in the weekly filter add another summary card below the other stats cards but above the charts
+showing the weekly target and the amount spent so far and by how much the user is above or below the target. It should take the whole width
+
+
+
+
+
+
+The transactions page should enable filtering by:
+- status i.e "uncategorized", "All"
+- also by "Today", "Yesterday", "All" and should follow the same way and the
+ analytics does it i.e using a modal sheet unlike dropdowns. Default to "Today"
+- by category 
+
+
+The wallets page should not have a back icon in the app but should be a normal page like the dashboard i.e the navbar is still visible on it and the title on the app bar to resemble that of the transactions page i.e a title and description
+
+for the navbar,the changes look fine but please replace the items there my items in the navbar i.e Dashboard, Transactions, Analytics, Profile and their icons 
+The icon at the center should not be a plus but one that represents wallets. The navbar should use the same shade of blue used for hte app bar
