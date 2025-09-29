@@ -431,7 +431,7 @@ class SmsTransactionParser {
     }
   }
 
-  /// Handle withdraw transactions (M-Pesa to Cash)
+  /// Handle withdraw transactions (M-Pesa to Cash) as transfer
   Future<void> _handleWithdraw(SmsMessage message, String smsHash) async {
     try {
       final amount = _extractAmount(
@@ -446,16 +446,31 @@ class SmsTransactionParser {
         return;
       }
 
-      log('💰 Processing WITHDRAW: KSh$amount from M-Pesa to Cash');
+      // Check for duplicate using date and amount
+      final existingTransaction = await _transactionRepository
+          .getTransactionByDateAndAmount(date, amount);
+      if (existingTransaction != null) {
+        log(
+          'ℹ️ Transaction with date $date and amount $amount already exists, skipping',
+        );
+        return;
+      }
 
-      // Create single WITHDRAW transaction from M-Pesa
+      log('💰 Processing WITHDRAW as TRANSFER: KSh$amount from M-Pesa to Cash');
+
+      // Ensure Cash wallet exists
+      await _ensureCashWalletExists();
+
+      // Create TRANSFER transaction (M-Pesa to Cash)
       await _transactionRepository.createTransaction(
         walletId: (await _getWalletByName('M-Pesa'))!.id,
+        categoryItemId: null,
         amount: amount,
         transactionCost: transactionCost,
-        type: 'WITHDRAW',
-        description: 'Withdrawn from M-Pesa',
+        type: 'TRANSFER',
+        description: 'M-Pesa to Cash',
         date: date,
+        status: 'CATEGORIZED', // Transfers don't need categorization
         smsHash: smsHash,
       );
 
@@ -463,7 +478,7 @@ class SmsTransactionParser {
       await _updateWalletBalance('M-Pesa', -(amount + transactionCost));
       await _updateWalletBalance('Cash', amount);
 
-      log('✅ WITHDRAW transaction created successfully');
+      log('✅ WITHDRAW transfer transaction created successfully');
     } catch (e) {
       log('❌ Error handling withdraw: $e');
     }
@@ -709,6 +724,24 @@ class SmsTransactionParser {
       }
     } catch (e) {
       log('❌ Error ensuring bank wallet exists: $e');
+    }
+  }
+
+  /// Ensure Cash wallet exists, create if not
+  Future<void> _ensureCashWalletExists() async {
+    try {
+      final existingWallet = await _getWalletByName('Cash');
+      if (existingWallet == null) {
+        // Create the Cash wallet
+        await _walletRepository.createWallet(
+          name: 'Cash',
+          amount: 0.0,
+          transactionSenderName: 'CASH',
+        );
+        log('✅ Created Cash wallet');
+      }
+    } catch (e) {
+      log('❌ Error ensuring Cash wallet exists: $e');
     }
   }
 

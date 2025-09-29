@@ -11,10 +11,13 @@ import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/pages/google_login_page.dart';
 import '../../../../core/services/sync_settings_service.dart';
 import '../../../../core/services/auto_categorize_settings_service.dart';
+import '../../../../core/services/exclude_weekly_settings_service.dart';
 import '../../../../core/services/data_sync_service.dart';
 import '../../../../core/widgets/sync_status_widget.dart';
 import 'category_items_page.dart';
 import 'weekly_targets_page.dart';
+import 'multi_categorization_page.dart';
+import 'manual_sms_parser_page.dart';
 
 /// Settings page matching the design mockup
 ///
@@ -32,6 +35,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _autoCategorizeTransactions = true;
   bool _syncEnabled = false;
   bool _isUpdatingSync = false;
+  bool _excludeFromWeekly = false;
 
   // Category repository
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
@@ -43,6 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadSyncState();
     _loadAutoCategorizeState();
+    _loadExcludeWeeklyState();
     _loadCategories();
   }
 
@@ -57,6 +62,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final enabled = await SyncSettingsService.getSyncEnabled();
     if (mounted) {
       setState(() => _syncEnabled = enabled);
+    }
+  }
+
+  Future<void> _loadExcludeWeeklyState() async {
+    final enabled = await ExcludeWeeklySettingsService.getEnabled();
+    if (mounted) {
+      setState(() => _excludeFromWeekly = enabled);
     }
   }
 
@@ -334,6 +346,43 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
 
+              const SizedBox(height: 16),
+
+              // Exclude selected transactions from weekly toggle
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  title: const Text(
+                    'Exclude selected transactions from weekly',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Exclude marked transactions from weekly analytics',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  trailing: Switch(
+                    value: _excludeFromWeekly,
+                    onChanged: (value) {
+                      setState(() {
+                        _excludeFromWeekly = value;
+                      });
+                      ExcludeWeeklySettingsService.setEnabled(value);
+                    },
+                    activeThumbColor: const Color(0xFF2196F3),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 32),
 
               // Weekly Targets Section
@@ -383,6 +432,94 @@ class _SettingsPageState extends State<SettingsPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const WeeklyTargetsPage(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Multi-Categorization Section
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                child: Text(
+                  'Multi-Categorization',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  leading: const Icon(Icons.list_alt, color: Color(0xFF2196F3)),
+                  title: const Text(
+                    'Price Lists',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Break down transactions into multiple categories',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MultiCategorizationPage(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  leading: const Icon(Icons.sms, color: Color(0xFF2196F3)),
+                  title: const Text(
+                    'Manual SMS Parser',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Manually process SMS messages',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ManualSmsParserPage(),
                       ),
                     );
                   },

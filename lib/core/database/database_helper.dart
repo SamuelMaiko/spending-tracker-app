@@ -53,6 +53,9 @@ class Transactions extends Table {
   TextColumn get status =>
       text().withDefault(const Constant('UNCATEGORIZED'))();
   TextColumn get smsHash => text().named('sms_hash').nullable()();
+  BoolColumn get excludeFromWeekly => boolean()
+      .named('exclude_from_weekly')
+      .withDefault(const Constant(false))();
   DateTimeColumn get createdAt =>
       dateTime().named('created_at').withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
@@ -71,6 +74,31 @@ class WeeklySpendingLimits extends Table {
       dateTime().named('updated_at').withDefault(currentDateAndTime)();
 }
 
+/// Multi-categorization lists table
+class MultiCategorizationLists extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  IntColumn get transactionId => integer().named('transaction_id').nullable()();
+  BoolColumn get isApplied =>
+      boolean().named('is_applied').withDefault(const Constant(false))();
+  DateTimeColumn get createdAt =>
+      dateTime().named('created_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt =>
+      dateTime().named('updated_at').withDefault(currentDateAndTime)();
+}
+
+/// Multi-categorization items table
+class MultiCategorizationItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get listId => integer().named('list_id')();
+  IntColumn get categoryItemId => integer().named('category_item_id')();
+  RealColumn get amount => real()();
+  DateTimeColumn get createdAt =>
+      dateTime().named('created_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt =>
+      dateTime().named('updated_at').withDefault(currentDateAndTime)();
+}
+
 /// Main database class using Drift ORM
 @DriftDatabase(
   tables: [
@@ -79,13 +107,15 @@ class WeeklySpendingLimits extends Table {
     CategoryItems,
     Transactions,
     WeeklySpendingLimits,
+    MultiCategorizationLists,
+    MultiCategorizationItems,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -104,6 +134,15 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         // Create weekly_spending_limits table
         await m.createTable(weeklySpendingLimits);
+      }
+      if (from < 4) {
+        // Add excludeFromWeekly column to transactions table
+        await customStatement(
+          'ALTER TABLE transactions ADD COLUMN exclude_from_weekly BOOLEAN DEFAULT 0',
+        );
+        // Create multi-categorization tables
+        await m.createTable(multiCategorizationLists);
+        await m.createTable(multiCategorizationItems);
       }
     },
   );

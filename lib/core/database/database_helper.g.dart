@@ -969,6 +969,21 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _excludeFromWeeklyMeta = const VerificationMeta(
+    'excludeFromWeekly',
+  );
+  @override
+  late final GeneratedColumn<bool> excludeFromWeekly = GeneratedColumn<bool>(
+    'exclude_from_weekly',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("exclude_from_weekly" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1005,6 +1020,7 @@ class $TransactionsTable extends Transactions
     date,
     status,
     smsHash,
+    excludeFromWeekly,
     createdAt,
     updatedAt,
   ];
@@ -1094,6 +1110,15 @@ class $TransactionsTable extends Transactions
         smsHash.isAcceptableOrUnknown(data['sms_hash']!, _smsHashMeta),
       );
     }
+    if (data.containsKey('exclude_from_weekly')) {
+      context.handle(
+        _excludeFromWeeklyMeta,
+        excludeFromWeekly.isAcceptableOrUnknown(
+          data['exclude_from_weekly']!,
+          _excludeFromWeeklyMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1155,6 +1180,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}sms_hash'],
       ),
+      excludeFromWeekly: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}exclude_from_weekly'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1183,6 +1212,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final DateTime date;
   final String status;
   final String? smsHash;
+  final bool excludeFromWeekly;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Transaction({
@@ -1196,6 +1226,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.date,
     required this.status,
     this.smsHash,
+    required this.excludeFromWeekly,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1218,6 +1249,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || smsHash != null) {
       map['sms_hash'] = Variable<String>(smsHash);
     }
+    map['exclude_from_weekly'] = Variable<bool>(excludeFromWeekly);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1241,6 +1273,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       smsHash: smsHash == null && nullToAbsent
           ? const Value.absent()
           : Value(smsHash),
+      excludeFromWeekly: Value(excludeFromWeekly),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1262,6 +1295,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       date: serializer.fromJson<DateTime>(json['date']),
       status: serializer.fromJson<String>(json['status']),
       smsHash: serializer.fromJson<String?>(json['smsHash']),
+      excludeFromWeekly: serializer.fromJson<bool>(json['excludeFromWeekly']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1280,6 +1314,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'date': serializer.toJson<DateTime>(date),
       'status': serializer.toJson<String>(status),
       'smsHash': serializer.toJson<String?>(smsHash),
+      'excludeFromWeekly': serializer.toJson<bool>(excludeFromWeekly),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1296,6 +1331,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     DateTime? date,
     String? status,
     Value<String?> smsHash = const Value.absent(),
+    bool? excludeFromWeekly,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Transaction(
@@ -1311,6 +1347,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     date: date ?? this.date,
     status: status ?? this.status,
     smsHash: smsHash.present ? smsHash.value : this.smsHash,
+    excludeFromWeekly: excludeFromWeekly ?? this.excludeFromWeekly,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1332,6 +1369,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       date: data.date.present ? data.date.value : this.date,
       status: data.status.present ? data.status.value : this.status,
       smsHash: data.smsHash.present ? data.smsHash.value : this.smsHash,
+      excludeFromWeekly: data.excludeFromWeekly.present
+          ? data.excludeFromWeekly.value
+          : this.excludeFromWeekly,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1350,6 +1390,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('date: $date, ')
           ..write('status: $status, ')
           ..write('smsHash: $smsHash, ')
+          ..write('excludeFromWeekly: $excludeFromWeekly, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1368,6 +1409,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     date,
     status,
     smsHash,
+    excludeFromWeekly,
     createdAt,
     updatedAt,
   );
@@ -1385,6 +1427,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.date == this.date &&
           other.status == this.status &&
           other.smsHash == this.smsHash &&
+          other.excludeFromWeekly == this.excludeFromWeekly &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1400,6 +1443,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<DateTime> date;
   final Value<String> status;
   final Value<String?> smsHash;
+  final Value<bool> excludeFromWeekly;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const TransactionsCompanion({
@@ -1413,6 +1457,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.date = const Value.absent(),
     this.status = const Value.absent(),
     this.smsHash = const Value.absent(),
+    this.excludeFromWeekly = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1427,6 +1472,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required DateTime date,
     this.status = const Value.absent(),
     this.smsHash = const Value.absent(),
+    this.excludeFromWeekly = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : walletId = Value(walletId),
@@ -1444,6 +1490,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<DateTime>? date,
     Expression<String>? status,
     Expression<String>? smsHash,
+    Expression<bool>? excludeFromWeekly,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -1458,6 +1505,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (date != null) 'date': date,
       if (status != null) 'status': status,
       if (smsHash != null) 'sms_hash': smsHash,
+      if (excludeFromWeekly != null) 'exclude_from_weekly': excludeFromWeekly,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1474,6 +1522,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<DateTime>? date,
     Value<String>? status,
     Value<String?>? smsHash,
+    Value<bool>? excludeFromWeekly,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -1488,6 +1537,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       date: date ?? this.date,
       status: status ?? this.status,
       smsHash: smsHash ?? this.smsHash,
+      excludeFromWeekly: excludeFromWeekly ?? this.excludeFromWeekly,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1526,6 +1576,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (smsHash.present) {
       map['sms_hash'] = Variable<String>(smsHash.value);
     }
+    if (excludeFromWeekly.present) {
+      map['exclude_from_weekly'] = Variable<bool>(excludeFromWeekly.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1548,6 +1601,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('date: $date, ')
           ..write('status: $status, ')
           ..write('smsHash: $smsHash, ')
+          ..write('excludeFromWeekly: $excludeFromWeekly, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1958,6 +2012,820 @@ class WeeklySpendingLimitsCompanion
   }
 }
 
+class $MultiCategorizationListsTable extends MultiCategorizationLists
+    with TableInfo<$MultiCategorizationListsTable, MultiCategorizationList> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MultiCategorizationListsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _transactionIdMeta = const VerificationMeta(
+    'transactionId',
+  );
+  @override
+  late final GeneratedColumn<int> transactionId = GeneratedColumn<int>(
+    'transaction_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isAppliedMeta = const VerificationMeta(
+    'isApplied',
+  );
+  @override
+  late final GeneratedColumn<bool> isApplied = GeneratedColumn<bool>(
+    'is_applied',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_applied" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    transactionId,
+    isApplied,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'multi_categorization_lists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MultiCategorizationList> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+        _transactionIdMeta,
+        transactionId.isAcceptableOrUnknown(
+          data['transaction_id']!,
+          _transactionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_applied')) {
+      context.handle(
+        _isAppliedMeta,
+        isApplied.isAcceptableOrUnknown(data['is_applied']!, _isAppliedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MultiCategorizationList map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MultiCategorizationList(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      transactionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}transaction_id'],
+      ),
+      isApplied: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_applied'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MultiCategorizationListsTable createAlias(String alias) {
+    return $MultiCategorizationListsTable(attachedDatabase, alias);
+  }
+}
+
+class MultiCategorizationList extends DataClass
+    implements Insertable<MultiCategorizationList> {
+  final int id;
+  final String name;
+  final int? transactionId;
+  final bool isApplied;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MultiCategorizationList({
+    required this.id,
+    required this.name,
+    this.transactionId,
+    required this.isApplied,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<int>(transactionId);
+    }
+    map['is_applied'] = Variable<bool>(isApplied);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MultiCategorizationListsCompanion toCompanion(bool nullToAbsent) {
+    return MultiCategorizationListsCompanion(
+      id: Value(id),
+      name: Value(name),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
+      isApplied: Value(isApplied),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MultiCategorizationList.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MultiCategorizationList(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      transactionId: serializer.fromJson<int?>(json['transactionId']),
+      isApplied: serializer.fromJson<bool>(json['isApplied']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'transactionId': serializer.toJson<int?>(transactionId),
+      'isApplied': serializer.toJson<bool>(isApplied),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MultiCategorizationList copyWith({
+    int? id,
+    String? name,
+    Value<int?> transactionId = const Value.absent(),
+    bool? isApplied,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => MultiCategorizationList(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    transactionId: transactionId.present
+        ? transactionId.value
+        : this.transactionId,
+    isApplied: isApplied ?? this.isApplied,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MultiCategorizationList copyWithCompanion(
+    MultiCategorizationListsCompanion data,
+  ) {
+    return MultiCategorizationList(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      isApplied: data.isApplied.present ? data.isApplied.value : this.isApplied,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MultiCategorizationList(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('isApplied: $isApplied, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, transactionId, isApplied, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MultiCategorizationList &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.transactionId == this.transactionId &&
+          other.isApplied == this.isApplied &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MultiCategorizationListsCompanion
+    extends UpdateCompanion<MultiCategorizationList> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int?> transactionId;
+  final Value<bool> isApplied;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const MultiCategorizationListsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.isApplied = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  MultiCategorizationListsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.transactionId = const Value.absent(),
+    this.isApplied = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : name = Value(name);
+  static Insertable<MultiCategorizationList> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? transactionId,
+    Expression<bool>? isApplied,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (isApplied != null) 'is_applied': isApplied,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  MultiCategorizationListsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? transactionId,
+    Value<bool>? isApplied,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return MultiCategorizationListsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      transactionId: transactionId ?? this.transactionId,
+      isApplied: isApplied ?? this.isApplied,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<int>(transactionId.value);
+    }
+    if (isApplied.present) {
+      map['is_applied'] = Variable<bool>(isApplied.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MultiCategorizationListsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('isApplied: $isApplied, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MultiCategorizationItemsTable extends MultiCategorizationItems
+    with TableInfo<$MultiCategorizationItemsTable, MultiCategorizationItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MultiCategorizationItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
+  @override
+  late final GeneratedColumn<int> listId = GeneratedColumn<int>(
+    'list_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryItemIdMeta = const VerificationMeta(
+    'categoryItemId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryItemId = GeneratedColumn<int>(
+    'category_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    listId,
+    categoryItemId,
+    amount,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'multi_categorization_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MultiCategorizationItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('list_id')) {
+      context.handle(
+        _listIdMeta,
+        listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_listIdMeta);
+    }
+    if (data.containsKey('category_item_id')) {
+      context.handle(
+        _categoryItemIdMeta,
+        categoryItemId.isAcceptableOrUnknown(
+          data['category_item_id']!,
+          _categoryItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryItemIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MultiCategorizationItem map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MultiCategorizationItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      listId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}list_id'],
+      )!,
+      categoryItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_item_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MultiCategorizationItemsTable createAlias(String alias) {
+    return $MultiCategorizationItemsTable(attachedDatabase, alias);
+  }
+}
+
+class MultiCategorizationItem extends DataClass
+    implements Insertable<MultiCategorizationItem> {
+  final int id;
+  final int listId;
+  final int categoryItemId;
+  final double amount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MultiCategorizationItem({
+    required this.id,
+    required this.listId,
+    required this.categoryItemId,
+    required this.amount,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['list_id'] = Variable<int>(listId);
+    map['category_item_id'] = Variable<int>(categoryItemId);
+    map['amount'] = Variable<double>(amount);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MultiCategorizationItemsCompanion toCompanion(bool nullToAbsent) {
+    return MultiCategorizationItemsCompanion(
+      id: Value(id),
+      listId: Value(listId),
+      categoryItemId: Value(categoryItemId),
+      amount: Value(amount),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MultiCategorizationItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MultiCategorizationItem(
+      id: serializer.fromJson<int>(json['id']),
+      listId: serializer.fromJson<int>(json['listId']),
+      categoryItemId: serializer.fromJson<int>(json['categoryItemId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'listId': serializer.toJson<int>(listId),
+      'categoryItemId': serializer.toJson<int>(categoryItemId),
+      'amount': serializer.toJson<double>(amount),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MultiCategorizationItem copyWith({
+    int? id,
+    int? listId,
+    int? categoryItemId,
+    double? amount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => MultiCategorizationItem(
+    id: id ?? this.id,
+    listId: listId ?? this.listId,
+    categoryItemId: categoryItemId ?? this.categoryItemId,
+    amount: amount ?? this.amount,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MultiCategorizationItem copyWithCompanion(
+    MultiCategorizationItemsCompanion data,
+  ) {
+    return MultiCategorizationItem(
+      id: data.id.present ? data.id.value : this.id,
+      listId: data.listId.present ? data.listId.value : this.listId,
+      categoryItemId: data.categoryItemId.present
+          ? data.categoryItemId.value
+          : this.categoryItemId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MultiCategorizationItem(')
+          ..write('id: $id, ')
+          ..write('listId: $listId, ')
+          ..write('categoryItemId: $categoryItemId, ')
+          ..write('amount: $amount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, listId, categoryItemId, amount, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MultiCategorizationItem &&
+          other.id == this.id &&
+          other.listId == this.listId &&
+          other.categoryItemId == this.categoryItemId &&
+          other.amount == this.amount &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MultiCategorizationItemsCompanion
+    extends UpdateCompanion<MultiCategorizationItem> {
+  final Value<int> id;
+  final Value<int> listId;
+  final Value<int> categoryItemId;
+  final Value<double> amount;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const MultiCategorizationItemsCompanion({
+    this.id = const Value.absent(),
+    this.listId = const Value.absent(),
+    this.categoryItemId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  MultiCategorizationItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required int listId,
+    required int categoryItemId,
+    required double amount,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : listId = Value(listId),
+       categoryItemId = Value(categoryItemId),
+       amount = Value(amount);
+  static Insertable<MultiCategorizationItem> custom({
+    Expression<int>? id,
+    Expression<int>? listId,
+    Expression<int>? categoryItemId,
+    Expression<double>? amount,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (listId != null) 'list_id': listId,
+      if (categoryItemId != null) 'category_item_id': categoryItemId,
+      if (amount != null) 'amount': amount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  MultiCategorizationItemsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? listId,
+    Value<int>? categoryItemId,
+    Value<double>? amount,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return MultiCategorizationItemsCompanion(
+      id: id ?? this.id,
+      listId: listId ?? this.listId,
+      categoryItemId: categoryItemId ?? this.categoryItemId,
+      amount: amount ?? this.amount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (listId.present) {
+      map['list_id'] = Variable<int>(listId.value);
+    }
+    if (categoryItemId.present) {
+      map['category_item_id'] = Variable<int>(categoryItemId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MultiCategorizationItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('listId: $listId, ')
+          ..write('categoryItemId: $categoryItemId, ')
+          ..write('amount: $amount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1967,6 +2835,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $WeeklySpendingLimitsTable weeklySpendingLimits =
       $WeeklySpendingLimitsTable(this);
+  late final $MultiCategorizationListsTable multiCategorizationLists =
+      $MultiCategorizationListsTable(this);
+  late final $MultiCategorizationItemsTable multiCategorizationItems =
+      $MultiCategorizationItemsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1977,6 +2849,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     categoryItems,
     transactions,
     weeklySpendingLimits,
+    multiCategorizationLists,
+    multiCategorizationItems,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2937,6 +3811,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       required DateTime date,
       Value<String> status,
       Value<String?> smsHash,
+      Value<bool> excludeFromWeekly,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2952,6 +3827,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<DateTime> date,
       Value<String> status,
       Value<String?> smsHash,
+      Value<bool> excludeFromWeekly,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -3048,6 +3924,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get smsHash => $composableBuilder(
     column: $table.smsHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get excludeFromWeekly => $composableBuilder(
+    column: $table.excludeFromWeekly,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3157,6 +4038,11 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get excludeFromWeekly => $composableBuilder(
+    column: $table.excludeFromWeekly,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3251,6 +4137,11 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get smsHash =>
       $composableBuilder(column: $table.smsHash, builder: (column) => column);
 
+  GeneratedColumn<bool> get excludeFromWeekly => $composableBuilder(
+    column: $table.excludeFromWeekly,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -3342,6 +4233,7 @@ class $$TransactionsTableTableManager
                 Value<DateTime> date = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> smsHash = const Value.absent(),
+                Value<bool> excludeFromWeekly = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TransactionsCompanion(
@@ -3355,6 +4247,7 @@ class $$TransactionsTableTableManager
                 date: date,
                 status: status,
                 smsHash: smsHash,
+                excludeFromWeekly: excludeFromWeekly,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3370,6 +4263,7 @@ class $$TransactionsTableTableManager
                 required DateTime date,
                 Value<String> status = const Value.absent(),
                 Value<String?> smsHash = const Value.absent(),
+                Value<bool> excludeFromWeekly = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TransactionsCompanion.insert(
@@ -3383,6 +4277,7 @@ class $$TransactionsTableTableManager
                 date: date,
                 status: status,
                 smsHash: smsHash,
+                excludeFromWeekly: excludeFromWeekly,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3697,6 +4592,474 @@ typedef $$WeeklySpendingLimitsTableProcessedTableManager =
       WeeklySpendingLimit,
       PrefetchHooks Function()
     >;
+typedef $$MultiCategorizationListsTableCreateCompanionBuilder =
+    MultiCategorizationListsCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> transactionId,
+      Value<bool> isApplied,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$MultiCategorizationListsTableUpdateCompanionBuilder =
+    MultiCategorizationListsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> transactionId,
+      Value<bool> isApplied,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$MultiCategorizationListsTableFilterComposer
+    extends Composer<_$AppDatabase, $MultiCategorizationListsTable> {
+  $$MultiCategorizationListsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isApplied => $composableBuilder(
+    column: $table.isApplied,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MultiCategorizationListsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MultiCategorizationListsTable> {
+  $$MultiCategorizationListsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isApplied => $composableBuilder(
+    column: $table.isApplied,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MultiCategorizationListsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MultiCategorizationListsTable> {
+  $$MultiCategorizationListsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get transactionId => $composableBuilder(
+    column: $table.transactionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isApplied =>
+      $composableBuilder(column: $table.isApplied, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MultiCategorizationListsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MultiCategorizationListsTable,
+          MultiCategorizationList,
+          $$MultiCategorizationListsTableFilterComposer,
+          $$MultiCategorizationListsTableOrderingComposer,
+          $$MultiCategorizationListsTableAnnotationComposer,
+          $$MultiCategorizationListsTableCreateCompanionBuilder,
+          $$MultiCategorizationListsTableUpdateCompanionBuilder,
+          (
+            MultiCategorizationList,
+            BaseReferences<
+              _$AppDatabase,
+              $MultiCategorizationListsTable,
+              MultiCategorizationList
+            >,
+          ),
+          MultiCategorizationList,
+          PrefetchHooks Function()
+        > {
+  $$MultiCategorizationListsTableTableManager(
+    _$AppDatabase db,
+    $MultiCategorizationListsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MultiCategorizationListsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$MultiCategorizationListsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MultiCategorizationListsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> transactionId = const Value.absent(),
+                Value<bool> isApplied = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => MultiCategorizationListsCompanion(
+                id: id,
+                name: name,
+                transactionId: transactionId,
+                isApplied: isApplied,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> transactionId = const Value.absent(),
+                Value<bool> isApplied = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => MultiCategorizationListsCompanion.insert(
+                id: id,
+                name: name,
+                transactionId: transactionId,
+                isApplied: isApplied,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MultiCategorizationListsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MultiCategorizationListsTable,
+      MultiCategorizationList,
+      $$MultiCategorizationListsTableFilterComposer,
+      $$MultiCategorizationListsTableOrderingComposer,
+      $$MultiCategorizationListsTableAnnotationComposer,
+      $$MultiCategorizationListsTableCreateCompanionBuilder,
+      $$MultiCategorizationListsTableUpdateCompanionBuilder,
+      (
+        MultiCategorizationList,
+        BaseReferences<
+          _$AppDatabase,
+          $MultiCategorizationListsTable,
+          MultiCategorizationList
+        >,
+      ),
+      MultiCategorizationList,
+      PrefetchHooks Function()
+    >;
+typedef $$MultiCategorizationItemsTableCreateCompanionBuilder =
+    MultiCategorizationItemsCompanion Function({
+      Value<int> id,
+      required int listId,
+      required int categoryItemId,
+      required double amount,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$MultiCategorizationItemsTableUpdateCompanionBuilder =
+    MultiCategorizationItemsCompanion Function({
+      Value<int> id,
+      Value<int> listId,
+      Value<int> categoryItemId,
+      Value<double> amount,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$MultiCategorizationItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $MultiCategorizationItemsTable> {
+  $$MultiCategorizationItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get listId => $composableBuilder(
+    column: $table.listId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get categoryItemId => $composableBuilder(
+    column: $table.categoryItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MultiCategorizationItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MultiCategorizationItemsTable> {
+  $$MultiCategorizationItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get listId => $composableBuilder(
+    column: $table.listId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get categoryItemId => $composableBuilder(
+    column: $table.categoryItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MultiCategorizationItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MultiCategorizationItemsTable> {
+  $$MultiCategorizationItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get listId =>
+      $composableBuilder(column: $table.listId, builder: (column) => column);
+
+  GeneratedColumn<int> get categoryItemId => $composableBuilder(
+    column: $table.categoryItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MultiCategorizationItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MultiCategorizationItemsTable,
+          MultiCategorizationItem,
+          $$MultiCategorizationItemsTableFilterComposer,
+          $$MultiCategorizationItemsTableOrderingComposer,
+          $$MultiCategorizationItemsTableAnnotationComposer,
+          $$MultiCategorizationItemsTableCreateCompanionBuilder,
+          $$MultiCategorizationItemsTableUpdateCompanionBuilder,
+          (
+            MultiCategorizationItem,
+            BaseReferences<
+              _$AppDatabase,
+              $MultiCategorizationItemsTable,
+              MultiCategorizationItem
+            >,
+          ),
+          MultiCategorizationItem,
+          PrefetchHooks Function()
+        > {
+  $$MultiCategorizationItemsTableTableManager(
+    _$AppDatabase db,
+    $MultiCategorizationItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MultiCategorizationItemsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$MultiCategorizationItemsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MultiCategorizationItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> listId = const Value.absent(),
+                Value<int> categoryItemId = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => MultiCategorizationItemsCompanion(
+                id: id,
+                listId: listId,
+                categoryItemId: categoryItemId,
+                amount: amount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int listId,
+                required int categoryItemId,
+                required double amount,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => MultiCategorizationItemsCompanion.insert(
+                id: id,
+                listId: listId,
+                categoryItemId: categoryItemId,
+                amount: amount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MultiCategorizationItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MultiCategorizationItemsTable,
+      MultiCategorizationItem,
+      $$MultiCategorizationItemsTableFilterComposer,
+      $$MultiCategorizationItemsTableOrderingComposer,
+      $$MultiCategorizationItemsTableAnnotationComposer,
+      $$MultiCategorizationItemsTableCreateCompanionBuilder,
+      $$MultiCategorizationItemsTableUpdateCompanionBuilder,
+      (
+        MultiCategorizationItem,
+        BaseReferences<
+          _$AppDatabase,
+          $MultiCategorizationItemsTable,
+          MultiCategorizationItem
+        >,
+      ),
+      MultiCategorizationItem,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3711,4 +5074,14 @@ class $AppDatabaseManager {
       $$TransactionsTableTableManager(_db, _db.transactions);
   $$WeeklySpendingLimitsTableTableManager get weeklySpendingLimits =>
       $$WeeklySpendingLimitsTableTableManager(_db, _db.weeklySpendingLimits);
+  $$MultiCategorizationListsTableTableManager get multiCategorizationLists =>
+      $$MultiCategorizationListsTableTableManager(
+        _db,
+        _db.multiCategorizationLists,
+      );
+  $$MultiCategorizationItemsTableTableManager get multiCategorizationItems =>
+      $$MultiCategorizationItemsTableTableManager(
+        _db,
+        _db.multiCategorizationItems,
+      );
 }

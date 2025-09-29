@@ -715,6 +715,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final TextEditingController descriptionController = TextEditingController(
       text: transaction.description ?? '',
     );
+    bool excludeFromWeekly = transaction.excludeFromWeekly;
 
     showModalBottomSheet(
       context: context,
@@ -788,6 +789,26 @@ class _TransactionsPageState extends State<TransactionsPage> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Exclude from weekly checkbox
+                StatefulBuilder(
+                  builder: (context, setDialogState) => CheckboxListTile(
+                    title: const Text('Exclude from weekly analytics'),
+                    subtitle: const Text(
+                      'This transaction will not be included in weekly spending calculations',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    value: excludeFromWeekly,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        excludeFromWeekly = value ?? false;
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
                 const SizedBox(height: 20),
 
                 // Buttons
@@ -820,7 +841,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
                               // Update other fields if needed
                               if (amount != transaction.amount ||
                                   descriptionController.text !=
-                                      (transaction.description ?? '')) {
+                                      (transaction.description ?? '') ||
+                                  excludeFromWeekly !=
+                                      transaction.excludeFromWeekly) {
                                 final updatedTransaction = transaction.copyWith(
                                   amount: amount,
                                   description: drift.Value(
@@ -828,6 +851,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                         ? null
                                         : descriptionController.text,
                                   ),
+                                  excludeFromWeekly: excludeFromWeekly,
                                 );
 
                                 // Use the new method that handles wallet balance adjustment

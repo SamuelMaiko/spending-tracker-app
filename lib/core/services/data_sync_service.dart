@@ -6,6 +6,7 @@ import '../database/repositories/wallet_repository.dart';
 import '../database/repositories/transaction_repository.dart';
 import '../database/repositories/category_repository.dart';
 import '../database/repositories/weekly_spending_limit_repository.dart';
+import 'exclude_weekly_settings_service.dart';
 import '../database/database_helper.dart' as db;
 import 'firestore_service.dart';
 import 'sync_settings_service.dart';
@@ -101,6 +102,10 @@ class DataSyncService {
       // Step 5: Ensure default weekly spending limit exists
       developer.log('📊 Ensuring default weekly spending limit exists...');
       await _ensureDefaultWeeklySpendingLimitExists();
+
+      // Step 6: Load user settings from Firebase
+      developer.log('⚙️ Loading user settings from Firebase...');
+      await ExcludeWeeklySettingsService.loadFromFirebase();
 
       developer.log(
         '✅ Initial sync completed - local data overwritten with cloud data',

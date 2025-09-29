@@ -5,6 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
 import '../../../../core/database/repositories/category_repository.dart';
 import '../../../../core/database/repositories/weekly_spending_limit_repository.dart';
+import '../../../../core/services/exclude_weekly_settings_service.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../dependency_injector.dart';
 
@@ -267,13 +268,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
     );
 
+    // Check if exclude weekly setting is enabled
+    final excludeWeeklyEnabled =
+        await ExcludeWeeklySettingsService.getEnabled();
+
     // Calculate this week's spending (DEBIT transactions)
     final selectedWeekTransactions = allTransactions
         .where(
           (t) =>
               t.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
               t.date.isBefore(weekEnd.add(const Duration(days: 1))) &&
-              (t.type == 'DEBIT'),
+              (t.type == 'DEBIT') &&
+              (!excludeWeeklyEnabled || !t.excludeFromWeekly),
         )
         .toList();
 
@@ -282,7 +288,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           (t) =>
               t.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
               t.date.isBefore(weekEnd.add(const Duration(days: 1))) &&
-              (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+              (t.type == 'DEBIT' || t.type == 'TRANSFER') &&
+              (!excludeWeeklyEnabled || !t.excludeFromWeekly),
         )
         .toList();
 
@@ -303,7 +310,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 previousWeekStart.subtract(const Duration(days: 1)),
               ) &&
               t.date.isBefore(previousWeekEnd.add(const Duration(days: 1))) &&
-              t.type == 'DEBIT',
+              t.type == 'DEBIT' &&
+              (!excludeWeeklyEnabled || !t.excludeFromWeekly),
         )
         .toList();
 
@@ -314,7 +322,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 previousWeekStart.subtract(const Duration(days: 1)),
               ) &&
               t.date.isBefore(previousWeekEnd.add(const Duration(days: 1))) &&
-              (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+              (t.type == 'DEBIT' || t.type == 'TRANSFER') &&
+              (!excludeWeeklyEnabled || !t.excludeFromWeekly),
         )
         .toList();
 
@@ -472,6 +481,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final now = DateTime.now();
     final List<DailySpending> weeklyData = [];
 
+    // Check if exclude weekly setting is enabled
+    final excludeWeeklyEnabled =
+        await ExcludeWeeklySettingsService.getEnabled();
+
     // Get the start of this week (Monday)
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
 
@@ -487,7 +500,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 t.date.year == targetDate.year &&
                 t.date.month == targetDate.month &&
                 t.date.day == targetDate.day &&
-                t.type == 'DEBIT',
+                t.type == 'DEBIT' &&
+                (!excludeWeeklyEnabled || !t.excludeFromWeekly),
           )
           .toList();
 
@@ -511,6 +525,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   ) async {
     final List<DailySpending> weeklyData = [];
 
+    // Check if exclude weekly setting is enabled
+    final excludeWeeklyEnabled =
+        await ExcludeWeeklySettingsService.getEnabled();
+
     // Calculate spending for each day of the selected week
     for (int i = 0; i < 7; i++) {
       final targetDate = weekStart.add(Duration(days: i));
@@ -523,7 +541,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 t.date.year == targetDate.year &&
                 t.date.month == targetDate.month &&
                 t.date.day == targetDate.day &&
-                t.type == 'DEBIT',
+                t.type == 'DEBIT' &&
+                (!excludeWeeklyEnabled || !t.excludeFromWeekly),
           )
           .toList();
 

@@ -6,6 +6,7 @@ import 'core/database/repositories/wallet_repository.dart';
 import 'core/database/repositories/transaction_repository.dart';
 import 'core/database/repositories/category_repository.dart';
 import 'core/database/repositories/weekly_spending_limit_repository.dart';
+import 'core/database/repositories/multi_categorization_repository.dart';
 import 'core/services/sms_catchup_service.dart';
 import 'core/services/firestore_service.dart';
 import 'core/services/sync_settings_service.dart';
@@ -50,6 +51,10 @@ Future<void> initializeDependencies() async {
 
   sl.registerLazySingleton<WeeklySpendingLimitRepository>(
     () => WeeklySpendingLimitRepository(sl<AppDatabase>()),
+  );
+
+  sl.registerLazySingleton<MultiCategorizationRepository>(
+    () => MultiCategorizationRepository(sl<AppDatabase>()),
   );
 
   // Services
