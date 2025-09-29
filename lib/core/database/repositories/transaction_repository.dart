@@ -112,6 +112,7 @@ class TransactionRepository {
     required DateTime date,
     String status = 'UNCATEGORIZED',
     String? smsHash,
+    bool excludeFromWeekly = false,
   }) async {
     final transactionId = await _database
         .into(_database.transactions)
@@ -126,6 +127,7 @@ class TransactionRepository {
             date: date,
             status: Value(status),
             smsHash: Value(smsHash),
+            excludeFromWeekly: Value(excludeFromWeekly),
           ),
         );
 

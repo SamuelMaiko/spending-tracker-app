@@ -80,6 +80,7 @@ Future<void> initializeDependencies() async {
       transactionRepository: sl<TransactionRepository>(),
       categoryRepository: sl<CategoryRepository>(),
       weeklySpendingLimitRepository: sl<WeeklySpendingLimitRepository>(),
+      multiCategorizationRepository: sl<MultiCategorizationRepository>(),
     ),
   );
 

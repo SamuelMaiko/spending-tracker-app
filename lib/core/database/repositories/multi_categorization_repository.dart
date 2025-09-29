@@ -5,12 +5,17 @@ import '../models/multi_categorization_model.dart';
 class MultiCategorizationRepository {
   final MultiCategorizationModel _model;
 
-  MultiCategorizationRepository(AppDatabase database) 
-      : _model = MultiCategorizationModel(database);
+  MultiCategorizationRepository(AppDatabase database)
+    : _model = MultiCategorizationModel(database);
 
   /// Get all multi-categorization lists
   Future<List<MultiCategorizationList>> getAllLists() async {
     return await _model.getAllLists();
+  }
+
+  /// Get all multi-categorization items
+  Future<List<MultiCategorizationItem>> getAllItems() async {
+    return await _model.getAllItems();
   }
 
   /// Get a specific list by ID
@@ -19,7 +24,9 @@ class MultiCategorizationRepository {
   }
 
   /// Get lists by transaction ID
-  Future<List<MultiCategorizationList>> getListsByTransactionId(int transactionId) async {
+  Future<List<MultiCategorizationList>> getListsByTransactionId(
+    int transactionId,
+  ) async {
     return await _model.getListsByTransactionId(transactionId);
   }
 
@@ -29,10 +36,7 @@ class MultiCategorizationRepository {
   }
 
   /// Create a new multi-categorization list
-  Future<int> createList({
-    required String name,
-    int? transactionId,
-  }) async {
+  Future<int> createList({required String name, int? transactionId}) async {
     return await _model.createList(name: name, transactionId: transactionId);
   }
 

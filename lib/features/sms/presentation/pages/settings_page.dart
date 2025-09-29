@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/repositories/category_repository.dart';
+import '../../../../core/database/repositories/wallet_repository.dart';
+import '../../../../core/database/repositories/transaction_repository.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../dependency_injector.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -37,8 +39,11 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isUpdatingSync = false;
   bool _excludeFromWeekly = false;
 
-  // Category repository
+  // Repositories
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
+  final WalletRepository _walletRepository = sl<WalletRepository>();
+  final TransactionRepository _transactionRepository =
+      sl<TransactionRepository>();
   List<Category> _categories = [];
   bool _isLoadingCategories = true;
 
@@ -523,6 +528,39 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     );
                   },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Create Transaction
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  leading: const Icon(
+                    Icons.add_circle_outline,
+                    color: Color(0xFF2196F3),
+                  ),
+                  title: const Text(
+                    'Create Transaction',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Add a transaction manually',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () => _showCreateTransactionDialog(),
                 ),
               ),
 
@@ -1124,6 +1162,121 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showCreateTransactionDialog() {
+    final amountController = TextEditingController();
+    final costController = TextEditingController();
+    String selectedWallet = 'Cash'; // Default to Cash
+    final List<String> walletOptions = ['Cash', 'M-Pesa', 'Pochi La Biashara'];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Create Transaction'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (KSh)',
+                  border: OutlineInputBorder(),
+                  prefixText: 'KSh ',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: costController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Transaction Cost (KSh)',
+                  border: OutlineInputBorder(),
+                  prefixText: 'KSh ',
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: selectedWallet,
+                decoration: const InputDecoration(
+                  labelText: 'Wallet',
+                  border: OutlineInputBorder(),
+                ),
+                items: walletOptions.map((wallet) {
+                  return DropdownMenuItem(value: wallet, child: Text(wallet));
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      selectedWallet = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text.trim());
+                final cost = double.tryParse(costController.text.trim()) ?? 0.0;
+
+                if (amount != null && amount > 0) {
+                  try {
+                    // Find the wallet by name
+                    final wallets = await _walletRepository.getAllWallets();
+                    final wallet = wallets.firstWhere(
+                      (w) => w.name == selectedWallet,
+                      orElse: () => wallets.first, // Fallback to first wallet
+                    );
+
+                    await _transactionRepository.createTransaction(
+                      walletId: wallet.id,
+                      amount: amount,
+                      transactionCost: cost,
+                      type: 'DEBIT',
+                      description: 'Manual transaction',
+                      date: DateTime.now(),
+                      status: 'UNCATEGORIZED',
+                    );
+
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Transaction created successfully'),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error creating transaction: $e'),
+                        ),
+                      );
+                    }
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid amount'),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

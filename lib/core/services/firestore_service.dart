@@ -53,6 +53,24 @@ class FirestoreService {
             .collection('weeklySpendingLimits')
       : null;
 
+  // Multi-Categorization Lists collection
+  static CollectionReference? get _multiCategorizationListsCollection =>
+      _isAuthenticated
+      ? _firestore
+            .collection('users')
+            .doc(_currentUserUid)
+            .collection('multiCategorizationLists')
+      : null;
+
+  // Multi-Categorization Items collection
+  static CollectionReference? get _multiCategorizationItemsCollection =>
+      _isAuthenticated
+      ? _firestore
+            .collection('users')
+            .doc(_currentUserUid)
+            .collection('multiCategorizationItems')
+      : null;
+
   static DocumentReference? get _settingsDocument => _isAuthenticated
       ? _firestore.collection('users').doc(_currentUserUid)
       : null;
@@ -188,6 +206,7 @@ class FirestoreService {
         'date': transaction.date.toIso8601String(),
         'createdAt': transaction.createdAt.toIso8601String(),
         'smsHash': transaction.smsHash,
+        'excludeFromWeekly': transaction.excludeFromWeekly,
         'updatedAt': DateTime.now().toIso8601String(),
         if (walletName != null) 'walletName': walletName,
         if (walletSenderName != null) 'walletSenderName': walletSenderName,
@@ -508,6 +527,8 @@ class FirestoreService {
         downloadCategories(),
         downloadCategoryItems(),
         downloadWeeklySpendingLimits(),
+        downloadMultiCategorizationLists(),
+        downloadMultiCategorizationItems(),
       ]);
 
       final data = {
@@ -516,6 +537,8 @@ class FirestoreService {
         'categories': results[2],
         'categoryItems': results[3],
         'weeklySpendingLimits': results[4],
+        'multiCategorizationLists': results[5],
+        'multiCategorizationItems': results[6],
       };
 
       developer.log('✅ Bulk download completed successfully');
@@ -563,6 +586,64 @@ class FirestoreService {
     }
   }
 
+  // MULTI-CATEGORIZATION OPERATIONS
+
+  /// Upload multi-categorization list to Firestore
+  static Future<void> uploadMultiCategorizationList(
+    db.MultiCategorizationList list,
+  ) async {
+    if (!_isAuthenticated || _multiCategorizationListsCollection == null) {
+      developer.log(
+        '❌ Cannot upload multi-categorization list: User not authenticated',
+      );
+      return;
+    }
+
+    try {
+      developer.log('📤 Uploading multi-categorization list: ${list.name}');
+      await _multiCategorizationListsCollection!.doc(list.id.toString()).set({
+        'id': list.id,
+        'name': list.name,
+        'transactionId': list.transactionId,
+        'isApplied': list.isApplied,
+        'createdAt': list.createdAt.toIso8601String(),
+        'updatedAt': list.updatedAt.toIso8601String(),
+      }, SetOptions(merge: true));
+      developer.log('✅ Multi-categorization list uploaded successfully');
+    } catch (e) {
+      developer.log('❌ Error uploading multi-categorization list: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload multi-categorization item to Firestore
+  static Future<void> uploadMultiCategorizationItem(
+    db.MultiCategorizationItem item,
+  ) async {
+    if (!_isAuthenticated || _multiCategorizationItemsCollection == null) {
+      developer.log(
+        '❌ Cannot upload multi-categorization item: User not authenticated',
+      );
+      return;
+    }
+
+    try {
+      developer.log('📤 Uploading multi-categorization item: ${item.id}');
+      await _multiCategorizationItemsCollection!.doc(item.id.toString()).set({
+        'id': item.id,
+        'listId': item.listId,
+        'categoryItemId': item.categoryItemId,
+        'amount': item.amount,
+        'createdAt': item.createdAt.toIso8601String(),
+        'updatedAt': item.updatedAt.toIso8601String(),
+      }, SetOptions(merge: true));
+      developer.log('✅ Multi-categorization item uploaded successfully');
+    } catch (e) {
+      developer.log('❌ Error uploading multi-categorization item: $e');
+      rethrow;
+    }
+  }
+
   /// Download weekly spending limits from Firestore
   static Future<List<Map<String, dynamic>>>
   downloadWeeklySpendingLimits() async {
@@ -585,6 +666,58 @@ class FirestoreService {
       return limits;
     } catch (e) {
       developer.log('❌ Error downloading weekly spending limits: $e');
+      return [];
+    }
+  }
+
+  /// Download multi-categorization lists from Firestore
+  static Future<List<Map<String, dynamic>>>
+  downloadMultiCategorizationLists() async {
+    if (!_isAuthenticated || _multiCategorizationListsCollection == null) {
+      developer.log(
+        '❌ Cannot download multi-categorization lists: User not authenticated',
+      );
+      return [];
+    }
+
+    try {
+      developer.log('📥 Downloading multi-categorization lists from Firestore');
+      final snapshot = await _multiCategorizationListsCollection!.get();
+      final lists = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['firestoreId'] = doc.id;
+        return data;
+      }).toList();
+      developer.log('✅ Downloaded ${lists.length} multi-categorization lists');
+      return lists;
+    } catch (e) {
+      developer.log('❌ Error downloading multi-categorization lists: $e');
+      return [];
+    }
+  }
+
+  /// Download multi-categorization items from Firestore
+  static Future<List<Map<String, dynamic>>>
+  downloadMultiCategorizationItems() async {
+    if (!_isAuthenticated || _multiCategorizationItemsCollection == null) {
+      developer.log(
+        '❌ Cannot download multi-categorization items: User not authenticated',
+      );
+      return [];
+    }
+
+    try {
+      developer.log('📥 Downloading multi-categorization items from Firestore');
+      final snapshot = await _multiCategorizationItemsCollection!.get();
+      final items = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['firestoreId'] = doc.id;
+        return data;
+      }).toList();
+      developer.log('✅ Downloaded ${items.length} multi-categorization items');
+      return items;
+    } catch (e) {
+      developer.log('❌ Error downloading multi-categorization items: $e');
       return [];
     }
   }

@@ -6,6 +6,7 @@ import '../database/repositories/wallet_repository.dart';
 import '../database/repositories/transaction_repository.dart';
 import '../database/repositories/category_repository.dart';
 import '../database/repositories/weekly_spending_limit_repository.dart';
+import '../database/repositories/multi_categorization_repository.dart';
 import 'exclude_weekly_settings_service.dart';
 import '../database/database_helper.dart' as db;
 import 'firestore_service.dart';
@@ -19,16 +20,19 @@ class DataSyncService {
   final TransactionRepository _transactionRepository;
   final CategoryRepository _categoryRepository;
   final WeeklySpendingLimitRepository _weeklySpendingLimitRepository;
+  final MultiCategorizationRepository _multiCategorizationRepository;
 
   DataSyncService({
     required WalletRepository walletRepository,
     required TransactionRepository transactionRepository,
     required CategoryRepository categoryRepository,
     required WeeklySpendingLimitRepository weeklySpendingLimitRepository,
+    required MultiCategorizationRepository multiCategorizationRepository,
   }) : _walletRepository = walletRepository,
        _transactionRepository = transactionRepository,
        _categoryRepository = categoryRepository,
-       _weeklySpendingLimitRepository = weeklySpendingLimitRepository;
+       _weeklySpendingLimitRepository = weeklySpendingLimitRepository,
+       _multiCategorizationRepository = multiCategorizationRepository;
 
   /// Perform proper sign-in sync flow
   Future<void> performSignInSync() async {
@@ -126,6 +130,10 @@ class DataSyncService {
       final categoryItems = cloudData['categoryItems'] ?? [];
       final transactions = cloudData['transactions'] ?? [];
       final weeklyLimits = cloudData['weeklySpendingLimits'] ?? [];
+      final multiCategorizationLists =
+          cloudData['multiCategorizationLists'] ?? [];
+      final multiCategorizationItems =
+          cloudData['multiCategorizationItems'] ?? [];
 
       // Create wallets from cloud (preserve Firestore IDs; do NOT auto-sync)
       final Map<String, int> walletNameToId = {};
@@ -258,6 +266,8 @@ class DataSyncService {
                 ? 'CATEGORIZED'
                 : (transactionData['status'] ?? 'UNCATEGORIZED').toString(),
             smsHash: (transactionData['smsHash'] ?? '').toString(),
+            excludeFromWeekly:
+                transactionData['excludeFromWeekly'] as bool? ?? false,
           );
           developer.log('📥 Created transaction from cloud');
         }
@@ -306,6 +316,76 @@ class DataSyncService {
         }
       }
 
+      // Create multi-categorization lists from cloud
+      for (final listData in multiCategorizationLists) {
+        final dynamic rawId = listData['id'] ?? listData['firestoreId'];
+        final int? cloudId = rawId is int
+            ? rawId
+            : int.tryParse(rawId?.toString() ?? '');
+
+        final name = (listData['name'] ?? '').toString();
+        final transactionId = listData['transactionId'] as int?;
+        final isApplied = listData['isApplied'] as bool? ?? false;
+        final createdAtStr = (listData['createdAt'] ?? '').toString();
+        final updatedAtStr = (listData['updatedAt'] ?? '').toString();
+        final createdAt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+        final updatedAt = DateTime.tryParse(updatedAtStr) ?? DateTime.now();
+
+        if (name.isNotEmpty) {
+          final companion = db.MultiCategorizationListsCompanion(
+            id: cloudId != null ? Value(cloudId) : const Value.absent(),
+            name: Value(name),
+            transactionId: transactionId != null
+                ? Value(transactionId)
+                : const Value.absent(),
+            isApplied: Value(isApplied),
+            createdAt: Value(createdAt),
+            updatedAt: Value(updatedAt),
+          );
+
+          await database
+              .into(database.multiCategorizationLists)
+              .insert(companion);
+          developer.log(
+            '📥 Created multi-categorization list from cloud: $name',
+          );
+        }
+      }
+
+      // Create multi-categorization items from cloud
+      for (final itemData in multiCategorizationItems) {
+        final dynamic rawId = itemData['id'] ?? itemData['firestoreId'];
+        final int? cloudId = rawId is int
+            ? rawId
+            : int.tryParse(rawId?.toString() ?? '');
+
+        final listId = itemData['listId'] as int?;
+        final categoryItemId = itemData['categoryItemId'] as int?;
+        final amount = (itemData['amount'] is num)
+            ? (itemData['amount'] as num).toDouble()
+            : 0.0;
+        final createdAtStr = (itemData['createdAt'] ?? '').toString();
+        final updatedAtStr = (itemData['updatedAt'] ?? '').toString();
+        final createdAt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+        final updatedAt = DateTime.tryParse(updatedAtStr) ?? DateTime.now();
+
+        if (listId != null && categoryItemId != null) {
+          final companion = db.MultiCategorizationItemsCompanion(
+            id: cloudId != null ? Value(cloudId) : const Value.absent(),
+            listId: Value(listId),
+            categoryItemId: Value(categoryItemId),
+            amount: Value(amount),
+            createdAt: Value(createdAt),
+            updatedAt: Value(updatedAt),
+          );
+
+          await database
+              .into(database.multiCategorizationItems)
+              .insert(companion);
+          developer.log('📥 Created multi-categorization item from cloud');
+        }
+      }
+
       developer.log('✅ Local database populated with cloud data');
     } catch (e) {
       developer.log('❌ Error populating local with cloud data: $e');
@@ -345,14 +425,24 @@ class DataSyncService {
       final categoryItems = await _categoryRepository.getAllCategoryItems();
       final weeklyLimits = await _weeklySpendingLimitRepository
           .getAllWeeklyLimits();
+      final multiCategorizationLists = await _multiCategorizationRepository
+          .getAllLists();
+      final multiCategorizationItems = await _multiCategorizationRepository
+          .getAllItems();
 
-      // Upload wallets, categories, category items, and weekly limits first
+      // Upload wallets, categories, category items, weekly limits, and multi-categorization data first
       await Future.wait([
         ...wallets.map((w) => FirestoreService.uploadWallet(w)),
         ...categories.map((c) => FirestoreService.uploadCategory(c)),
         ...categoryItems.map((i) => FirestoreService.uploadCategoryItem(i)),
         ...weeklyLimits.map(
           (l) => FirestoreService.uploadWeeklySpendingLimit(l),
+        ),
+        ...multiCategorizationLists.map(
+          (l) => FirestoreService.uploadMultiCategorizationList(l),
+        ),
+        ...multiCategorizationItems.map(
+          (i) => FirestoreService.uploadMultiCategorizationItem(i),
         ),
       ]);
 
@@ -975,6 +1065,7 @@ class DataSyncService {
         transactionRepository: sl<TransactionRepository>(),
         categoryRepository: sl<CategoryRepository>(),
         weeklySpendingLimitRepository: sl<WeeklySpendingLimitRepository>(),
+        multiCategorizationRepository: sl<MultiCategorizationRepository>(),
       );
       await service._uploadAllToFirestore();
 
