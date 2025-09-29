@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../database/repositories/wallet_repository.dart';
 import '../database/repositories/transaction_repository.dart';
 import '../database/repositories/category_repository.dart';
+import '../database/repositories/weekly_spending_limit_repository.dart';
 import '../database/database_helper.dart' as db;
 import 'firestore_service.dart';
 import 'sync_settings_service.dart';
@@ -16,14 +17,17 @@ class DataSyncService {
   final WalletRepository _walletRepository;
   final TransactionRepository _transactionRepository;
   final CategoryRepository _categoryRepository;
+  final WeeklySpendingLimitRepository _weeklySpendingLimitRepository;
 
   DataSyncService({
     required WalletRepository walletRepository,
     required TransactionRepository transactionRepository,
     required CategoryRepository categoryRepository,
+    required WeeklySpendingLimitRepository weeklySpendingLimitRepository,
   }) : _walletRepository = walletRepository,
        _transactionRepository = transactionRepository,
-       _categoryRepository = categoryRepository;
+       _categoryRepository = categoryRepository,
+       _weeklySpendingLimitRepository = weeklySpendingLimitRepository;
 
   /// Perform proper sign-in sync flow
   Future<void> performSignInSync() async {
@@ -94,6 +98,10 @@ class DataSyncService {
       developer.log('🏦 Ensuring default wallets exist...');
       await _ensureDefaultWalletsExist();
 
+      // Step 5: Ensure default weekly spending limit exists
+      developer.log('📊 Ensuring default weekly spending limit exists...');
+      await _ensureDefaultWeeklySpendingLimitExists();
+
       developer.log(
         '✅ Initial sync completed - local data overwritten with cloud data',
       );
@@ -112,6 +120,7 @@ class DataSyncService {
       final categories = cloudData['categories'] ?? [];
       final categoryItems = cloudData['categoryItems'] ?? [];
       final transactions = cloudData['transactions'] ?? [];
+      final weeklyLimits = cloudData['weeklySpendingLimits'] ?? [];
 
       // Create wallets from cloud (preserve Firestore IDs; do NOT auto-sync)
       final Map<String, int> walletNameToId = {};
@@ -249,6 +258,49 @@ class DataSyncService {
         }
       }
 
+      // Create weekly spending limits from cloud
+      for (final limitData in weeklyLimits) {
+        final dynamic rawId = limitData['id'] ?? limitData['firestoreId'];
+        final int? cloudId = rawId is int
+            ? rawId
+            : int.tryParse(rawId?.toString() ?? '');
+
+        final weekStartStr = (limitData['weekStart'] ?? '').toString();
+        final weekEndStr = (limitData['weekEnd'] ?? '').toString();
+        final weekStart = DateTime.tryParse(weekStartStr);
+        final weekEnd = DateTime.tryParse(weekEndStr);
+
+        if (weekStart != null && weekEnd != null) {
+          final targetAmount = (limitData['targetAmount'] is num)
+              ? (limitData['targetAmount'] as num).toDouble()
+              : 0.0;
+          final createdAtStr =
+              (limitData['createdAt'] ?? limitData['created_at'])?.toString();
+          final updatedAtStr =
+              (limitData['updatedAt'] ?? limitData['updated_at'])?.toString();
+          final createdAt =
+              DateTime.tryParse(createdAtStr ?? '') ?? DateTime.now();
+          final updatedAt =
+              DateTime.tryParse(updatedAtStr ?? '') ?? DateTime.now();
+
+          // Insert directly to DB to preserve IDs
+          final database = sl<db.AppDatabase>();
+          final companion = db.WeeklySpendingLimitsCompanion(
+            id: cloudId != null ? Value(cloudId) : const Value.absent(),
+            weekStart: Value(weekStart),
+            weekEnd: Value(weekEnd),
+            targetAmount: Value(targetAmount),
+            createdAt: Value(createdAt),
+            updatedAt: Value(updatedAt),
+          );
+
+          await database.into(database.weeklySpendingLimits).insert(companion);
+          developer.log(
+            '📥 Created weekly spending limit from cloud (id=${cloudId ?? 'auto'})',
+          );
+        }
+      }
+
       developer.log('✅ Local database populated with cloud data');
     } catch (e) {
       developer.log('❌ Error populating local with cloud data: $e');
@@ -286,12 +338,17 @@ class DataSyncService {
       final transactions = await _transactionRepository.getAllTransactions();
       final categories = await _categoryRepository.getAllCategories();
       final categoryItems = await _categoryRepository.getAllCategoryItems();
+      final weeklyLimits = await _weeklySpendingLimitRepository
+          .getAllWeeklyLimits();
 
-      // Upload wallets, categories and category items first
+      // Upload wallets, categories, category items, and weekly limits first
       await Future.wait([
         ...wallets.map((w) => FirestoreService.uploadWallet(w)),
         ...categories.map((c) => FirestoreService.uploadCategory(c)),
         ...categoryItems.map((i) => FirestoreService.uploadCategoryItem(i)),
+        ...weeklyLimits.map(
+          (l) => FirestoreService.uploadWeeklySpendingLimit(l),
+        ),
       ]);
 
       // Upload transactions with enriched context for better cross-device mapping
@@ -488,6 +545,37 @@ class DataSyncService {
       developer.log('✅ Default wallets ensured');
     } catch (e) {
       developer.log('❌ Error ensuring default wallets: $e');
+      rethrow;
+    }
+  }
+
+  /// Ensure default weekly spending limit exists for current week
+  Future<void> _ensureDefaultWeeklySpendingLimitExists() async {
+    try {
+      developer.log('📊 Ensuring default weekly spending limit exists...');
+
+      // Get current week start (Monday)
+      final now = DateTime.now();
+      final currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
+      final currentWeekEnd = currentWeekStart.add(const Duration(days: 6));
+
+      // Check if current week limit already exists
+      final existingLimit = await _weeklySpendingLimitRepository
+          .getWeeklyLimitByDate(currentWeekStart);
+
+      if (existingLimit == null) {
+        // Create default weekly spending limit of KSh 5000
+        await _weeklySpendingLimitRepository.setWeeklyLimit(
+          currentWeekStart,
+          currentWeekEnd,
+          5000.0,
+        );
+        developer.log('📊 Created default weekly spending limit: KSh 5000');
+      }
+
+      developer.log('✅ Default weekly spending limit ensured');
+    } catch (e) {
+      developer.log('❌ Error ensuring default weekly spending limit: $e');
       rethrow;
     }
   }
@@ -881,6 +969,7 @@ class DataSyncService {
         walletRepository: sl<WalletRepository>(),
         transactionRepository: sl<TransactionRepository>(),
         categoryRepository: sl<CategoryRepository>(),
+        weeklySpendingLimitRepository: sl<WeeklySpendingLimitRepository>(),
       );
       await service._uploadAllToFirestore();
 

@@ -14,6 +14,7 @@ import '../../../../core/services/auto_categorize_settings_service.dart';
 import '../../../../core/services/data_sync_service.dart';
 import '../../../../core/widgets/sync_status_widget.dart';
 import 'category_items_page.dart';
+import 'weekly_targets_page.dart';
 
 /// Settings page matching the design mockup
 ///
@@ -331,6 +332,61 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   );
                 },
+              ),
+
+              const SizedBox(height: 32),
+
+              // Weekly Targets Section
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                child: Text(
+                  'Weekly Targets',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.defaultPadding,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppConstants.defaultPadding,
+                    vertical: 8,
+                  ),
+                  leading: const Icon(
+                    Icons.track_changes,
+                    color: Color(0xFF2196F3),
+                  ),
+                  title: const Text(
+                    'Manage Weekly Spending Targets',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Set and track your weekly spending goals',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WeeklyTargetsPage(),
+                      ),
+                    );
+                  },
+                ),
               ),
 
               const SizedBox(height: 32),

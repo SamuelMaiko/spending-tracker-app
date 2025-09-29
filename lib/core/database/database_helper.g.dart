@@ -1555,6 +1555,409 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   }
 }
 
+class $WeeklySpendingLimitsTable extends WeeklySpendingLimits
+    with TableInfo<$WeeklySpendingLimitsTable, WeeklySpendingLimit> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WeeklySpendingLimitsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _weekStartMeta = const VerificationMeta(
+    'weekStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> weekStart = GeneratedColumn<DateTime>(
+    'week_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weekEndMeta = const VerificationMeta(
+    'weekEnd',
+  );
+  @override
+  late final GeneratedColumn<DateTime> weekEnd = GeneratedColumn<DateTime>(
+    'week_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetAmountMeta = const VerificationMeta(
+    'targetAmount',
+  );
+  @override
+  late final GeneratedColumn<double> targetAmount = GeneratedColumn<double>(
+    'target_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    weekStart,
+    weekEnd,
+    targetAmount,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'weekly_spending_limits';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WeeklySpendingLimit> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('week_start')) {
+      context.handle(
+        _weekStartMeta,
+        weekStart.isAcceptableOrUnknown(data['week_start']!, _weekStartMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_weekStartMeta);
+    }
+    if (data.containsKey('week_end')) {
+      context.handle(
+        _weekEndMeta,
+        weekEnd.isAcceptableOrUnknown(data['week_end']!, _weekEndMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_weekEndMeta);
+    }
+    if (data.containsKey('target_amount')) {
+      context.handle(
+        _targetAmountMeta,
+        targetAmount.isAcceptableOrUnknown(
+          data['target_amount']!,
+          _targetAmountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_targetAmountMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WeeklySpendingLimit map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WeeklySpendingLimit(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      weekStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}week_start'],
+      )!,
+      weekEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}week_end'],
+      )!,
+      targetAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}target_amount'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WeeklySpendingLimitsTable createAlias(String alias) {
+    return $WeeklySpendingLimitsTable(attachedDatabase, alias);
+  }
+}
+
+class WeeklySpendingLimit extends DataClass
+    implements Insertable<WeeklySpendingLimit> {
+  final int id;
+  final DateTime weekStart;
+  final DateTime weekEnd;
+  final double targetAmount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const WeeklySpendingLimit({
+    required this.id,
+    required this.weekStart,
+    required this.weekEnd,
+    required this.targetAmount,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['week_start'] = Variable<DateTime>(weekStart);
+    map['week_end'] = Variable<DateTime>(weekEnd);
+    map['target_amount'] = Variable<double>(targetAmount);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  WeeklySpendingLimitsCompanion toCompanion(bool nullToAbsent) {
+    return WeeklySpendingLimitsCompanion(
+      id: Value(id),
+      weekStart: Value(weekStart),
+      weekEnd: Value(weekEnd),
+      targetAmount: Value(targetAmount),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WeeklySpendingLimit.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WeeklySpendingLimit(
+      id: serializer.fromJson<int>(json['id']),
+      weekStart: serializer.fromJson<DateTime>(json['weekStart']),
+      weekEnd: serializer.fromJson<DateTime>(json['weekEnd']),
+      targetAmount: serializer.fromJson<double>(json['targetAmount']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'weekStart': serializer.toJson<DateTime>(weekStart),
+      'weekEnd': serializer.toJson<DateTime>(weekEnd),
+      'targetAmount': serializer.toJson<double>(targetAmount),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WeeklySpendingLimit copyWith({
+    int? id,
+    DateTime? weekStart,
+    DateTime? weekEnd,
+    double? targetAmount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => WeeklySpendingLimit(
+    id: id ?? this.id,
+    weekStart: weekStart ?? this.weekStart,
+    weekEnd: weekEnd ?? this.weekEnd,
+    targetAmount: targetAmount ?? this.targetAmount,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WeeklySpendingLimit copyWithCompanion(WeeklySpendingLimitsCompanion data) {
+    return WeeklySpendingLimit(
+      id: data.id.present ? data.id.value : this.id,
+      weekStart: data.weekStart.present ? data.weekStart.value : this.weekStart,
+      weekEnd: data.weekEnd.present ? data.weekEnd.value : this.weekEnd,
+      targetAmount: data.targetAmount.present
+          ? data.targetAmount.value
+          : this.targetAmount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WeeklySpendingLimit(')
+          ..write('id: $id, ')
+          ..write('weekStart: $weekStart, ')
+          ..write('weekEnd: $weekEnd, ')
+          ..write('targetAmount: $targetAmount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, weekStart, weekEnd, targetAmount, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WeeklySpendingLimit &&
+          other.id == this.id &&
+          other.weekStart == this.weekStart &&
+          other.weekEnd == this.weekEnd &&
+          other.targetAmount == this.targetAmount &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WeeklySpendingLimitsCompanion
+    extends UpdateCompanion<WeeklySpendingLimit> {
+  final Value<int> id;
+  final Value<DateTime> weekStart;
+  final Value<DateTime> weekEnd;
+  final Value<double> targetAmount;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const WeeklySpendingLimitsCompanion({
+    this.id = const Value.absent(),
+    this.weekStart = const Value.absent(),
+    this.weekEnd = const Value.absent(),
+    this.targetAmount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  WeeklySpendingLimitsCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime weekStart,
+    required DateTime weekEnd,
+    required double targetAmount,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : weekStart = Value(weekStart),
+       weekEnd = Value(weekEnd),
+       targetAmount = Value(targetAmount);
+  static Insertable<WeeklySpendingLimit> custom({
+    Expression<int>? id,
+    Expression<DateTime>? weekStart,
+    Expression<DateTime>? weekEnd,
+    Expression<double>? targetAmount,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (weekStart != null) 'week_start': weekStart,
+      if (weekEnd != null) 'week_end': weekEnd,
+      if (targetAmount != null) 'target_amount': targetAmount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  WeeklySpendingLimitsCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? weekStart,
+    Value<DateTime>? weekEnd,
+    Value<double>? targetAmount,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return WeeklySpendingLimitsCompanion(
+      id: id ?? this.id,
+      weekStart: weekStart ?? this.weekStart,
+      weekEnd: weekEnd ?? this.weekEnd,
+      targetAmount: targetAmount ?? this.targetAmount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (weekStart.present) {
+      map['week_start'] = Variable<DateTime>(weekStart.value);
+    }
+    if (weekEnd.present) {
+      map['week_end'] = Variable<DateTime>(weekEnd.value);
+    }
+    if (targetAmount.present) {
+      map['target_amount'] = Variable<double>(targetAmount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WeeklySpendingLimitsCompanion(')
+          ..write('id: $id, ')
+          ..write('weekStart: $weekStart, ')
+          ..write('weekEnd: $weekEnd, ')
+          ..write('targetAmount: $targetAmount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1562,6 +1965,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $CategoryItemsTable categoryItems = $CategoryItemsTable(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
+  late final $WeeklySpendingLimitsTable weeklySpendingLimits =
+      $WeeklySpendingLimitsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1571,6 +1976,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     categories,
     categoryItems,
     transactions,
+    weeklySpendingLimits,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3060,6 +3466,237 @@ typedef $$TransactionsTableProcessedTableManager =
       Transaction,
       PrefetchHooks Function({bool walletId, bool categoryItemId})
     >;
+typedef $$WeeklySpendingLimitsTableCreateCompanionBuilder =
+    WeeklySpendingLimitsCompanion Function({
+      Value<int> id,
+      required DateTime weekStart,
+      required DateTime weekEnd,
+      required double targetAmount,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$WeeklySpendingLimitsTableUpdateCompanionBuilder =
+    WeeklySpendingLimitsCompanion Function({
+      Value<int> id,
+      Value<DateTime> weekStart,
+      Value<DateTime> weekEnd,
+      Value<double> targetAmount,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$WeeklySpendingLimitsTableFilterComposer
+    extends Composer<_$AppDatabase, $WeeklySpendingLimitsTable> {
+  $$WeeklySpendingLimitsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get weekStart => $composableBuilder(
+    column: $table.weekStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get weekEnd => $composableBuilder(
+    column: $table.weekEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get targetAmount => $composableBuilder(
+    column: $table.targetAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WeeklySpendingLimitsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WeeklySpendingLimitsTable> {
+  $$WeeklySpendingLimitsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get weekStart => $composableBuilder(
+    column: $table.weekStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get weekEnd => $composableBuilder(
+    column: $table.weekEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get targetAmount => $composableBuilder(
+    column: $table.targetAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WeeklySpendingLimitsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WeeklySpendingLimitsTable> {
+  $$WeeklySpendingLimitsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get weekStart =>
+      $composableBuilder(column: $table.weekStart, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get weekEnd =>
+      $composableBuilder(column: $table.weekEnd, builder: (column) => column);
+
+  GeneratedColumn<double> get targetAmount => $composableBuilder(
+    column: $table.targetAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$WeeklySpendingLimitsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WeeklySpendingLimitsTable,
+          WeeklySpendingLimit,
+          $$WeeklySpendingLimitsTableFilterComposer,
+          $$WeeklySpendingLimitsTableOrderingComposer,
+          $$WeeklySpendingLimitsTableAnnotationComposer,
+          $$WeeklySpendingLimitsTableCreateCompanionBuilder,
+          $$WeeklySpendingLimitsTableUpdateCompanionBuilder,
+          (
+            WeeklySpendingLimit,
+            BaseReferences<
+              _$AppDatabase,
+              $WeeklySpendingLimitsTable,
+              WeeklySpendingLimit
+            >,
+          ),
+          WeeklySpendingLimit,
+          PrefetchHooks Function()
+        > {
+  $$WeeklySpendingLimitsTableTableManager(
+    _$AppDatabase db,
+    $WeeklySpendingLimitsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WeeklySpendingLimitsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WeeklySpendingLimitsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$WeeklySpendingLimitsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> weekStart = const Value.absent(),
+                Value<DateTime> weekEnd = const Value.absent(),
+                Value<double> targetAmount = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => WeeklySpendingLimitsCompanion(
+                id: id,
+                weekStart: weekStart,
+                weekEnd: weekEnd,
+                targetAmount: targetAmount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime weekStart,
+                required DateTime weekEnd,
+                required double targetAmount,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => WeeklySpendingLimitsCompanion.insert(
+                id: id,
+                weekStart: weekStart,
+                weekEnd: weekEnd,
+                targetAmount: targetAmount,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WeeklySpendingLimitsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WeeklySpendingLimitsTable,
+      WeeklySpendingLimit,
+      $$WeeklySpendingLimitsTableFilterComposer,
+      $$WeeklySpendingLimitsTableOrderingComposer,
+      $$WeeklySpendingLimitsTableAnnotationComposer,
+      $$WeeklySpendingLimitsTableCreateCompanionBuilder,
+      $$WeeklySpendingLimitsTableUpdateCompanionBuilder,
+      (
+        WeeklySpendingLimit,
+        BaseReferences<
+          _$AppDatabase,
+          $WeeklySpendingLimitsTable,
+          WeeklySpendingLimit
+        >,
+      ),
+      WeeklySpendingLimit,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3072,4 +3709,6 @@ class $AppDatabaseManager {
       $$CategoryItemsTableTableManager(_db, _db.categoryItems);
   $$TransactionsTableTableManager get transactions =>
       $$TransactionsTableTableManager(_db, _db.transactions);
+  $$WeeklySpendingLimitsTableTableManager get weeklySpendingLimits =>
+      $$WeeklySpendingLimitsTableTableManager(_db, _db.weeklySpendingLimits);
 }

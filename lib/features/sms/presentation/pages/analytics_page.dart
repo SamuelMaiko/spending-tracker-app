@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
 import '../../../../core/database/repositories/category_repository.dart';
+import '../../../../core/database/repositories/weekly_spending_limit_repository.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../dependency_injector.dart';
 
@@ -58,6 +59,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   final TransactionRepository _transactionRepository =
       sl<TransactionRepository>();
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
+  final WeeklySpendingLimitRepository _weeklyLimitRepository =
+      sl<WeeklySpendingLimitRepository>();
 
   double _totalSpentThisMonth = 0.0;
   double _totalSpentLastMonth = 0.0;
@@ -72,6 +75,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   DateTime _selectedMonth = DateTime.now();
   List<DateTime> _availableMonths = [];
   Set<String> _expandedCategories = {};
+  String _selectedPeriod = 'weekly'; // 'weekly' or 'monthly'
+  DateTime _selectedWeek = DateTime.now();
+  List<DateTime> _availableWeeks = [];
+
+  // Weekly target data
+  WeeklySpendingLimit? _currentWeeklyTarget;
+  double _currentWeekSpending = 0.0;
 
   // 16 colors for categories
   static const List<Color> _categoryColors = [
@@ -97,6 +107,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   void initState() {
     super.initState();
     _initializeAvailableMonths();
+    _generateAvailableWeeks();
     _loadAnalyticsData();
   }
 
@@ -124,116 +135,206 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     setState(() => _isLoading = true);
 
     try {
-      final now = DateTime.now();
-      final startOfSelectedMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month,
-        1,
-      );
-      final endOfSelectedMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month + 1,
-        0,
-      );
-      final startOfPreviousMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month - 1,
-        1,
-      );
-      final endOfPreviousMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month,
-        0,
-      );
-
       final allTransactions = await _transactionRepository.getAllTransactions();
 
-      // Calculate this month's spending (DEBIT transactions)
-      final selectedMonthTransactions = allTransactions
-          .where(
-            (t) =>
-                t.date.isAfter(
-                  startOfSelectedMonth.subtract(const Duration(days: 1)),
-                ) &&
-                t.date.isBefore(
-                  endOfSelectedMonth.add(const Duration(days: 1)),
-                ) &&
-                (t.type == 'DEBIT'),
-          )
-          .toList();
-      // Calculate this month's spending (DEBIT transactions)
-      final selectedMonthTransactions2 = allTransactions
-          .where(
-            (t) =>
-                t.date.isAfter(
-                  startOfSelectedMonth.subtract(const Duration(days: 1)),
-                ) &&
-                t.date.isBefore(
-                  endOfSelectedMonth.add(const Duration(days: 1)),
-                ) &&
-                (t.type == 'DEBIT' || t.type == 'TRANSFER'),
-          )
-          .toList();
-
-      _totalSpentThisMonth = selectedMonthTransactions.fold(
-        0.0,
-        (sum, t) => sum + t.amount,
-      );
-      _transactionFeesThisMonth = selectedMonthTransactions2.fold(
-        0.0,
-        (sum, t) => sum + t.transactionCost,
-      );
-
-      // Calculate last month's spending (DEBIT transactions)
-      final lastMonthTransactions = allTransactions
-          .where(
-            (t) =>
-                t.date.isAfter(
-                  startOfPreviousMonth.subtract(const Duration(days: 1)),
-                ) &&
-                t.date.isBefore(
-                  endOfPreviousMonth.add(const Duration(days: 1)),
-                ) &&
-                t.type == 'DEBIT',
-          )
-          .toList();
-
-      // Calculate last month's spending (DEBIT transactions)
-      final lastMonthTransactions2 = allTransactions
-          .where(
-            (t) =>
-                t.date.isAfter(
-                  startOfPreviousMonth.subtract(const Duration(days: 1)),
-                ) &&
-                t.date.isBefore(
-                  endOfPreviousMonth.add(const Duration(days: 1)),
-                ) &&
-                (t.type == 'DEBIT' || t.type == 'TRANSFER'),
-          )
-          .toList();
-
-      _totalSpentLastMonth = lastMonthTransactions.fold(
-        0.0,
-        (sum, t) => sum + t.amount,
-      );
-      _transactionFeesLastMonth = lastMonthTransactions2.fold(
-        0.0,
-        (sum, t) => sum + t.transactionCost,
-      );
-
-      // Calculate category spending for selected month
-      await _calculateCategorySpending(selectedMonthTransactions);
-
-      // Calculate monthly spending for the last 4 months
-      await _calculateMonthlySpending(allTransactions);
-
-      // Calculate weekly spending for this week
-      await _calculateWeeklySpending(allTransactions);
+      if (_selectedPeriod == 'weekly') {
+        await _loadWeeklyData(allTransactions);
+        await _loadWeeklyTargetData();
+      } else {
+        await _loadMonthlyData(allTransactions);
+      }
     } catch (e) {
       print('Error loading analytics data: $e');
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _loadMonthlyData(List<Transaction> allTransactions) async {
+    final startOfSelectedMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month,
+      1,
+    );
+    final endOfSelectedMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month + 1,
+      0,
+    );
+    final startOfPreviousMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month - 1,
+      1,
+    );
+    final endOfPreviousMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month,
+      0,
+    );
+
+    // Calculate this month's spending (DEBIT transactions)
+    final selectedMonthTransactions = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(
+                startOfSelectedMonth.subtract(const Duration(days: 1)),
+              ) &&
+              t.date.isBefore(
+                endOfSelectedMonth.add(const Duration(days: 1)),
+              ) &&
+              (t.type == 'DEBIT'),
+        )
+        .toList();
+    // Calculate this month's spending (DEBIT transactions)
+    final selectedMonthTransactions2 = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(
+                startOfSelectedMonth.subtract(const Duration(days: 1)),
+              ) &&
+              t.date.isBefore(
+                endOfSelectedMonth.add(const Duration(days: 1)),
+              ) &&
+              (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+        )
+        .toList();
+
+    _totalSpentThisMonth = selectedMonthTransactions.fold(
+      0.0,
+      (sum, t) => sum + t.amount,
+    );
+    _transactionFeesThisMonth = selectedMonthTransactions2.fold(
+      0.0,
+      (sum, t) => sum + t.transactionCost,
+    );
+
+    // Calculate last month's spending (DEBIT transactions)
+    final lastMonthTransactions = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(
+                startOfPreviousMonth.subtract(const Duration(days: 1)),
+              ) &&
+              t.date.isBefore(
+                endOfPreviousMonth.add(const Duration(days: 1)),
+              ) &&
+              t.type == 'DEBIT',
+        )
+        .toList();
+
+    // Calculate last month's spending (DEBIT transactions)
+    final lastMonthTransactions2 = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(
+                startOfPreviousMonth.subtract(const Duration(days: 1)),
+              ) &&
+              t.date.isBefore(
+                endOfPreviousMonth.add(const Duration(days: 1)),
+              ) &&
+              (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+        )
+        .toList();
+
+    _totalSpentLastMonth = lastMonthTransactions.fold(
+      0.0,
+      (sum, t) => sum + t.amount,
+    );
+    _transactionFeesLastMonth = lastMonthTransactions2.fold(
+      0.0,
+      (sum, t) => sum + t.transactionCost,
+    );
+
+    // Calculate category spending for selected month
+    await _calculateCategorySpending(selectedMonthTransactions);
+
+    // Calculate monthly spending for the last 4 months
+    await _calculateMonthlySpending(allTransactions);
+
+    // Calculate weekly spending for this week
+    await _calculateWeeklySpending(allTransactions);
+  }
+
+  Future<void> _loadWeeklyData(List<Transaction> allTransactions) async {
+    final weekStart = _selectedWeek;
+    final weekEnd = weekStart.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
+
+    // Calculate previous week for comparison
+    final previousWeekStart = weekStart.subtract(const Duration(days: 7));
+    final previousWeekEnd = previousWeekStart.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
+
+    // Calculate this week's spending (DEBIT transactions)
+    final selectedWeekTransactions = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+              t.date.isBefore(weekEnd.add(const Duration(days: 1))) &&
+              (t.type == 'DEBIT'),
+        )
+        .toList();
+
+    final selectedWeekTransactions2 = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+              t.date.isBefore(weekEnd.add(const Duration(days: 1))) &&
+              (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+        )
+        .toList();
+
+    _totalSpentThisMonth = selectedWeekTransactions.fold(
+      0.0,
+      (sum, t) => sum + t.amount,
+    );
+    _transactionFeesThisMonth = selectedWeekTransactions2.fold(
+      0.0,
+      (sum, t) => sum + t.transactionCost,
+    );
+
+    // Calculate previous week's spending for comparison
+    final previousWeekTransactions = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(
+                previousWeekStart.subtract(const Duration(days: 1)),
+              ) &&
+              t.date.isBefore(previousWeekEnd.add(const Duration(days: 1))) &&
+              t.type == 'DEBIT',
+        )
+        .toList();
+
+    final previousWeekTransactions2 = allTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(
+                previousWeekStart.subtract(const Duration(days: 1)),
+              ) &&
+              t.date.isBefore(previousWeekEnd.add(const Duration(days: 1))) &&
+              (t.type == 'DEBIT' || t.type == 'TRANSFER'),
+        )
+        .toList();
+
+    _totalSpentLastMonth = previousWeekTransactions.fold(
+      0.0,
+      (sum, t) => sum + t.amount,
+    );
+    _transactionFeesLastMonth = previousWeekTransactions2.fold(
+      0.0,
+      (sum, t) => sum + t.transactionCost,
+    );
+
+    // Calculate category spending for selected week
+    await _calculateCategorySpending(selectedWeekTransactions);
+
+    // Calculate monthly spending for the last 4 months (still show monthly trend)
+    await _calculateMonthlySpending(allTransactions);
+
+    // Calculate weekly spending for selected week
+    await _calculateWeeklySpendingForWeek(allTransactions, weekStart);
   }
 
   Future<void> _refreshAnalytics() async {
@@ -242,12 +343,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   String _getTransactionFeesComparison() {
     final difference = _transactionFeesThisMonth - _transactionFeesLastMonth;
+    final period = _selectedPeriod == 'weekly' ? 'week' : 'month';
     if (difference > 0) {
-      return '+${difference.toStringAsFixed(0)} from last month';
+      return '+${difference.toStringAsFixed(0)} from last $period';
     } else if (difference < 0) {
-      return '${difference.toStringAsFixed(0)} from last month';
+      return '${difference.toStringAsFixed(0)} from last $period';
     } else {
-      return 'Same as last month';
+      return 'Same as last $period';
     }
   }
 
@@ -403,12 +505,84 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     _weeklySpending = weeklyData;
   }
 
+  Future<void> _calculateWeeklySpendingForWeek(
+    List<Transaction> allTransactions,
+    DateTime weekStart,
+  ) async {
+    final List<DailySpending> weeklyData = [];
+
+    // Calculate spending for each day of the selected week
+    for (int i = 0; i < 7; i++) {
+      final targetDate = weekStart.add(Duration(days: i));
+
+      // Filter transactions for this day (DEBIT only)
+      // Compare only the date part, ignoring time
+      final dayTransactions = allTransactions
+          .where(
+            (t) =>
+                t.date.year == targetDate.year &&
+                t.date.month == targetDate.month &&
+                t.date.day == targetDate.day &&
+                t.type == 'DEBIT',
+          )
+          .toList();
+
+      final daySpending = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+
+      // Get day name
+      final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final dayName = dayNames[i];
+
+      weeklyData.add(
+        DailySpending(dayName: dayName, amount: daySpending, dayIndex: i),
+      );
+    }
+
+    _weeklySpending = weeklyData;
+  }
+
   double _getMaxWeeklySpending() {
     if (_weeklySpending.isEmpty) return 100;
     final maxSpending = _weeklySpending
         .map((d) => d.amount)
         .reduce((a, b) => a > b ? a : b);
     return maxSpending > 0 ? maxSpending : 100;
+  }
+
+  Future<void> _loadWeeklyTargetData() async {
+    try {
+      // Get current week target
+      final weekStart = _selectedWeek;
+      final weekEnd = weekStart.add(const Duration(days: 6));
+
+      final target = await _weeklyLimitRepository.getWeeklyLimit(
+        weekStart,
+        weekEnd,
+      );
+
+      // Calculate current week spending
+      final allTransactions = await _transactionRepository.getAllTransactions();
+      final weekTransactions = allTransactions
+          .where(
+            (t) =>
+                t.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+                t.date.isBefore(weekEnd.add(const Duration(days: 1))) &&
+                t.type == 'DEBIT',
+          )
+          .toList();
+
+      final weekSpending = weekTransactions.fold(
+        0.0,
+        (sum, t) => sum + t.amount,
+      );
+
+      setState(() {
+        _currentWeeklyTarget = target;
+        _currentWeekSpending = weekSpending;
+      });
+    } catch (e) {
+      print('Error loading weekly target data: $e');
+    }
   }
 
   String _formatYAxisValue(double value) {
@@ -511,41 +685,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 80,
-        actions: [
-          // Month picker
-          GestureDetector(
-            onTap: _showMonthPicker,
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.calendar_today, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    _formatMonthYear(_selectedMonth),
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Filter button
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.tune, size: 20),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshAnalytics,
@@ -554,6 +693,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Filter section
+              _buildFilterSection(),
+
+              const SizedBox(height: 16),
+
               // Top stats cards
               Row(
                 children: [
@@ -561,7 +705,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     child: _buildStatCard(
                       'Total Spent',
                       'KSh ${_totalSpentThisMonth.toStringAsFixed(0)}',
-                      'This month',
+                      _selectedPeriod == 'weekly' ? 'This week' : 'This month',
                       Icons.trending_up,
                       Colors.blue,
                       isPositive: true,
@@ -588,6 +732,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
               const SizedBox(height: 24),
 
+              // Weekly Target Card (only show in weekly mode)
+              if (_selectedPeriod == 'weekly') ...[
+                _buildWeeklyTargetCard(),
+                const SizedBox(height: 24),
+              ],
+
               // Spending by Category Pie Chart
               _buildSpendingByCategoryChart(),
 
@@ -598,13 +748,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
               const SizedBox(height: 24),
 
-              // Monthly Spending Trend
-              _buildMonthlySpendingTrend(),
+              // Monthly Spending Trend (only show in monthly mode)
+              if (_selectedPeriod == 'monthly') ...[
+                _buildMonthlySpendingTrend(),
+                const SizedBox(height: 24),
+              ],
 
-              const SizedBox(height: 24),
-
-              // This Week's Activity
-              _buildWeeklyActivity(),
+              // This Week's Activity (only show in weekly mode)
+              if (_selectedPeriod == 'weekly') ...[
+                _buildWeeklyActivity(),
+                const SizedBox(height: 24),
+              ],
             ],
           ),
         ),
@@ -1004,7 +1158,21 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
                       maxY: _getMaxMonthlySpending() * 1.2, // Add 20% padding
-                      barTouchData: BarTouchData(enabled: false),
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final monthData = _monthlySpending[group.x.toInt()];
+                            return BarTooltipItem(
+                              'KSh ${monthData.amount.toStringAsFixed(0)}',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                       titlesData: FlTitlesData(
                         show: true,
                         bottomTitles: AxisTitles(
@@ -1297,6 +1465,432 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: amount > 0 ? Colors.red.shade600 : Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Period filter (Weekly/Monthly)
+          Row(
+            children: [
+              const Text(
+                'Period:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildPeriodChip('weekly', 'Weekly'),
+                    const SizedBox(width: 8),
+                    _buildPeriodChip('monthly', 'Monthly'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Date range filter
+          Row(
+            children: [
+              const Text(
+                'Range:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _selectedPeriod == 'weekly'
+                      ? _showWeekPicker
+                      : _showMonthPicker,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedPeriod == 'weekly'
+                              ? _formatWeekRange(_selectedWeek)
+                              : _formatMonthYear(_selectedMonth),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Icon(Icons.keyboard_arrow_down, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodChip(String period, String label) {
+    final isSelected = _selectedPeriod == period;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPeriod = period;
+          if (period == 'weekly') {
+            _generateAvailableWeeks();
+          }
+        });
+        _loadAnalyticsData();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0288D1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF0288D1) : Colors.grey.shade400,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatWeekRange(DateTime weekStart) {
+    final now = DateTime.now();
+    final thisWeekStart = now.subtract(Duration(days: now.weekday - 1));
+    final lastWeekStart = thisWeekStart.subtract(const Duration(days: 7));
+
+    // Normalize dates to compare only date parts
+    final weekStartDate = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day,
+    );
+    final thisWeekStartDate = DateTime(
+      thisWeekStart.year,
+      thisWeekStart.month,
+      thisWeekStart.day,
+    );
+    final lastWeekStartDate = DateTime(
+      lastWeekStart.year,
+      lastWeekStart.month,
+      lastWeekStart.day,
+    );
+
+    if (weekStartDate == thisWeekStartDate) {
+      return 'This week';
+    } else if (weekStartDate == lastWeekStartDate) {
+      return 'Last week';
+    } else {
+      final monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${monthNames[weekStart.month - 1]} ${weekStart.year} wk ${_getWeekOfMonth(weekStart)}';
+    }
+  }
+
+  int _getWeekOfMonth(DateTime date) {
+    final firstDayOfMonth = DateTime(date.year, date.month, 1);
+    final firstMondayOfMonth = firstDayOfMonth.add(
+      Duration(days: (8 - firstDayOfMonth.weekday) % 7),
+    );
+    final daysDifference = date.difference(firstMondayOfMonth).inDays;
+    return (daysDifference / 7).floor() + 1;
+  }
+
+  void _generateAvailableWeeks() {
+    final now = DateTime.now();
+    final weeks = <DateTime>[];
+
+    // Generate last 4 weeks including current week (current week first)
+    for (int i = 0; i <= 3; i++) {
+      final weekStart = now.subtract(Duration(days: now.weekday - 1 + (i * 7)));
+      weeks.add(weekStart);
+    }
+
+    _availableWeeks = weeks;
+    if (_availableWeeks.isNotEmpty) {
+      _selectedWeek =
+          _availableWeeks.first; // Default to current week (first in list)
+    }
+  }
+
+  void _showWeekPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: 300,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Select Week',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _availableWeeks.length,
+                itemBuilder: (context, index) {
+                  final week = _availableWeeks[index];
+                  final isSelected = week == _selectedWeek;
+
+                  return ListTile(
+                    title: Text(_formatWeekRange(week)),
+                    trailing: isSelected
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedWeek = week;
+                      });
+                      Navigator.pop(context);
+                      _loadAnalyticsData();
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyTargetCard() {
+    if (_currentWeeklyTarget == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.track_changes, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              'No Weekly Target Set',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Set a weekly spending target in Settings',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final target = _currentWeeklyTarget!;
+    final spent = _currentWeekSpending;
+    final difference = spent - target.targetAmount;
+    final isOverBudget = difference > 0;
+    final progressPercentage = (spent / target.targetAmount).clamp(0.0, 1.0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Weekly Target',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Icon(
+                Icons.track_changes,
+                color: isOverBudget ? Colors.red : Colors.green,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Progress bar
+          Container(
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: progressPercentage,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isOverBudget ? Colors.red : Colors.blue,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Target and spent amounts
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Target', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'KSh ${target.targetAmount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Spent', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'KSh ${spent.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Over/under budget indicator
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isOverBudget ? Colors.red.shade50 : Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isOverBudget ? Icons.trending_up : Icons.trending_down,
+                  color: isOverBudget ? Colors.red : Colors.green,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isOverBudget
+                      ? '+${difference.toStringAsFixed(0)} over budget'
+                      : '${difference.toStringAsFixed(0)} under budget',
+                  style: TextStyle(
+                    color: isOverBudget ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

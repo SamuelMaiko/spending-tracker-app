@@ -186,9 +186,28 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Wallet Settings'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Wallets',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Manage your wallet balances',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.8),
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: Colors.blue.shade600,
         foregroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
+        automaticallyImplyLeading: false, // Remove back button
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

@@ -44,6 +44,15 @@ class FirestoreService {
             .collection('categoryItems')
       : null;
 
+  // Weekly Spending Limits collection
+  static CollectionReference? get _weeklySpendingLimitsCollection =>
+      _isAuthenticated
+      ? _firestore
+            .collection('users')
+            .doc(_currentUserUid)
+            .collection('weeklySpendingLimits')
+      : null;
+
   static DocumentReference? get _settingsDocument => _isAuthenticated
       ? _firestore.collection('users').doc(_currentUserUid)
       : null;
@@ -485,6 +494,7 @@ class FirestoreService {
         'transactions': [],
         'categories': [],
         'categoryItems': [],
+        'weeklySpendingLimits': [],
       };
     }
 
@@ -497,6 +507,7 @@ class FirestoreService {
         downloadTransactions(),
         downloadCategories(),
         downloadCategoryItems(),
+        downloadWeeklySpendingLimits(),
       ]);
 
       final data = {
@@ -504,6 +515,7 @@ class FirestoreService {
         'transactions': results[1],
         'categories': results[2],
         'categoryItems': results[3],
+        'weeklySpendingLimits': results[4],
       };
 
       developer.log('✅ Bulk download completed successfully');
@@ -515,7 +527,65 @@ class FirestoreService {
         'transactions': [],
         'categories': [],
         'categoryItems': [],
+        'weeklySpendingLimits': [],
       };
+    }
+  }
+
+  // WEEKLY SPENDING LIMITS OPERATIONS
+
+  /// Upload weekly spending limit to Firestore
+  static Future<void> uploadWeeklySpendingLimit(
+    db.WeeklySpendingLimit limit,
+  ) async {
+    if (!_isAuthenticated || _weeklySpendingLimitsCollection == null) {
+      developer.log(
+        '❌ Cannot upload weekly spending limit: User not authenticated',
+      );
+      return;
+    }
+
+    try {
+      developer.log('📤 Uploading weekly spending limit: ${limit.id}');
+
+      await _weeklySpendingLimitsCollection!.doc(limit.id.toString()).set({
+        'id': limit.id,
+        'weekStart': limit.weekStart.toIso8601String(),
+        'weekEnd': limit.weekEnd.toIso8601String(),
+        'targetAmount': limit.targetAmount,
+        'createdAt': limit.createdAt.toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      developer.log('✅ Weekly spending limit uploaded successfully');
+    } catch (e) {
+      developer.log('❌ Error uploading weekly spending limit: $e');
+      rethrow;
+    }
+  }
+
+  /// Download weekly spending limits from Firestore
+  static Future<List<Map<String, dynamic>>>
+  downloadWeeklySpendingLimits() async {
+    if (!_isAuthenticated || _weeklySpendingLimitsCollection == null) {
+      developer.log(
+        '❌ Cannot download weekly spending limits: User not authenticated',
+      );
+      return [];
+    }
+
+    try {
+      developer.log('📥 Downloading weekly spending limits from Firestore');
+      final snapshot = await _weeklySpendingLimitsCollection!.get();
+      final limits = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['firestoreId'] = doc.id;
+        return data;
+      }).toList();
+      developer.log('✅ Downloaded ${limits.length} weekly spending limits');
+      return limits;
+    } catch (e) {
+      developer.log('❌ Error downloading weekly spending limits: $e');
+      return [];
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' as drift;
 
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/database/repositories/transaction_repository.dart';
+import '../../../../core/database/repositories/category_repository.dart';
 
 import '../../../../dependency_injector.dart';
 import '../bloc/sms_bloc.dart';
@@ -32,13 +33,19 @@ class TransactionsPage extends StatefulWidget {
 class _TransactionsPageState extends State<TransactionsPage> {
   final TransactionRepository _transactionRepository =
       sl<TransactionRepository>();
+  final CategoryRepository _categoryRepository = sl<CategoryRepository>();
   final ScrollController _scrollController = ScrollController();
   List<TransactionWithDetails> _transactions = [];
   List<TransactionWithDetails> _filteredTransactions = [];
   bool _isLoading = true;
   bool _showScrollToTop = false;
   Timer? _refreshTimer;
-  String _currentFilter = 'All'; // 'All' or 'Uncategorized'
+
+  // Filter state
+  String _statusFilter = 'All'; // 'All' or 'Uncategorized'
+  String _dateFilter = 'Today'; // 'Today', 'Yesterday', 'All'
+  String _categoryFilter = 'All'; // 'All' or specific category name
+  List<Category> _categories = [];
 
   @override
   void initState() {
@@ -46,7 +53,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
     // Set initial filter if provided
     if (widget.initialFilter != null) {
-      _currentFilter = widget.initialFilter!;
+      _statusFilter = widget.initialFilter!;
     }
 
     print('🚀 TransactionsPage initState called');
@@ -58,6 +65,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       print('📅 Post-frame callback executing...');
       _initializeData();
+      _loadCategories();
     });
   }
 
@@ -120,10 +128,24 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
   }
 
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _categoryRepository.getAllCategories();
+      setState(() {
+        _categories = categories;
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
+    }
+  }
+
   void _applyFilter() {
-    switch (_currentFilter) {
+    List<TransactionWithDetails> filtered = List.from(_transactions);
+
+    // Apply status filter
+    switch (_statusFilter) {
       case 'Uncategorized':
-        _filteredTransactions = _transactions
+        filtered = filtered
             .where(
               (t) =>
                   t.transaction.categoryItemId == null &&
@@ -133,14 +155,76 @@ class _TransactionsPageState extends State<TransactionsPage> {
         break;
       case 'All':
       default:
-        _filteredTransactions = List.from(_transactions);
+        // No status filtering
         break;
     }
+
+    // Apply date filter
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    switch (_dateFilter) {
+      case 'Today':
+        filtered = filtered.where((t) {
+          final transactionDate = DateTime(
+            t.transaction.date.year,
+            t.transaction.date.month,
+            t.transaction.date.day,
+          );
+          return transactionDate.isAtSameMomentAs(today);
+        }).toList();
+        break;
+      case 'Yesterday':
+        filtered = filtered.where((t) {
+          final transactionDate = DateTime(
+            t.transaction.date.year,
+            t.transaction.date.month,
+            t.transaction.date.day,
+          );
+          return transactionDate.isAtSameMomentAs(yesterday);
+        }).toList();
+        break;
+      case 'All':
+      default:
+        // No date filtering
+        break;
+    }
+
+    // Apply category filter
+    if (_categoryFilter != 'All') {
+      final selectedCategory = _categories.firstWhere(
+        (c) => c.name == _categoryFilter,
+        orElse: () => Category(id: -1, name: ''),
+      );
+
+      if (selectedCategory.id != -1) {
+        filtered = filtered
+            .where((t) => t.category?.name == _categoryFilter)
+            .toList();
+      }
+    }
+
+    _filteredTransactions = filtered;
   }
 
-  void _setFilter(String filter) {
+  void _setStatusFilter(String filter) {
     setState(() {
-      _currentFilter = filter;
+      _statusFilter = filter;
+      _applyFilter();
+    });
+  }
+
+  void _setDateFilter(String filter) {
+    setState(() {
+      _dateFilter = filter;
+      _applyFilter();
+    });
+  }
+
+  void _setCategoryFilter(String filter) {
+    setState(() {
+      _categoryFilter = filter;
       _applyFilter();
     });
   }
@@ -220,73 +304,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
             ? _buildEmptyState()
             : Column(
                 children: [
-                  // Filter dropdown (hidden when coming from review button)
-                  if (!widget.isFromReviewButton)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.filter_list,
-                            color: Colors.grey.shade600,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Filter by status',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 0,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(8),
-                                color: Colors.white,
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _currentFilter,
-                                  isExpanded: true,
-                                  icon: Icon(
-                                    Icons.keyboard_arrow_down,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black87,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'All',
-                                      child: Text('All'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Uncategorized',
-                                      child: Text('Uncategorized'),
-                                    ),
-                                  ],
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      _setFilter(newValue);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // Filter section (hidden when coming from review button)
+                  if (!widget.isFromReviewButton) _buildFilterSection(),
                   // Transactions list
                   Expanded(
                     child: RefreshIndicator(
@@ -588,6 +607,22 @@ class _TransactionsPageState extends State<TransactionsPage> {
   }
 
   Widget _buildEmptyFilterState() {
+    String title = 'No Transactions Found';
+    String subtitle = 'Try changing the filters or refresh the page';
+
+    if (_statusFilter == 'Uncategorized') {
+      title = 'No Uncategorized Transactions';
+      subtitle = 'All your transactions are categorized!';
+    } else if (_dateFilter == 'Today') {
+      title = 'No Transactions Today';
+      subtitle =
+          'No transactions found for today. Try changing the date filter.';
+    } else if (_dateFilter == 'Yesterday') {
+      title = 'No Transactions Yesterday';
+      subtitle =
+          'No transactions found for yesterday. Try changing the date filter.';
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -595,9 +630,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
           Icon(Icons.filter_list, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            _currentFilter == 'Uncategorized'
-                ? 'No Uncategorized Transactions'
-                : 'No Transactions Found',
+            title,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -606,9 +639,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            _currentFilter == 'Uncategorized'
-                ? 'All your transactions are categorized!'
-                : 'Try changing the filter or refresh the page',
+            subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
@@ -885,6 +916,288 @@ class _TransactionsPageState extends State<TransactionsPage> {
             child: const Text('Delete'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Status and Date filters row
+          Row(
+            children: [
+              Expanded(
+                child: _buildFilterChip(
+                  'Status: $_statusFilter',
+                  Icons.check_circle_outline,
+                  () => _showStatusFilterModal(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildFilterChip(
+                  'Date: $_dateFilter',
+                  Icons.calendar_today,
+                  () => _showDateFilterModal(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Category filter row
+          _buildFilterChip(
+            'Category: $_categoryFilter',
+            Icons.category,
+            () => _showCategoryFilterModal(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.grey.shade50,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.keyboard_arrow_down,
+              size: 16,
+              color: Colors.grey.shade600,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStatusFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: 200,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Filter by Status',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  ListTile(
+                    title: const Text('All'),
+                    trailing: _statusFilter == 'All'
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      _setStatusFilter('All');
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Uncategorized'),
+                    trailing: _statusFilter == 'Uncategorized'
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      _setStatusFilter('Uncategorized');
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDateFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: 250,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Filter by Date',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  ListTile(
+                    title: const Text('Today'),
+                    trailing: _dateFilter == 'Today'
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      _setDateFilter('Today');
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Yesterday'),
+                    trailing: _dateFilter == 'Yesterday'
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      _setDateFilter('Yesterday');
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('All'),
+                    trailing: _dateFilter == 'All'
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      _setDateFilter('All');
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: 400,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Filter by Category',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  ListTile(
+                    title: const Text('All'),
+                    trailing: _categoryFilter == 'All'
+                        ? const Icon(Icons.check, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      _setCategoryFilter('All');
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ..._categories.map(
+                    (category) => ListTile(
+                      title: Text(category.name),
+                      trailing: _categoryFilter == category.name
+                          ? const Icon(Icons.check, color: Colors.blue)
+                          : null,
+                      onTap: () {
+                        _setCategoryFilter(category.name);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

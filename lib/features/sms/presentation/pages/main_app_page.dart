@@ -37,6 +37,7 @@ class _MainAppPageState extends State<MainAppPage> {
       const TransactionsPage(),
       const AnalyticsPage(),
       const SettingsPage(),
+      const WalletSettingsPage(),
     ];
     _loadUncategorizedCount();
   }
@@ -61,10 +62,9 @@ class _MainAppPageState extends State<MainAppPage> {
   void _onTabTapped(int index) {
     // Handle wallet navigation (special index 4)
     if (index == 4) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const WalletSettingsPage()),
-      );
+      setState(() {
+        _currentIndex = 4; // Set to wallet index
+      });
       return;
     }
 

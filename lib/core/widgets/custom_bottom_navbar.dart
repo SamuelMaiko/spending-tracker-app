@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 /// Custom bottom navigation bar widget that matches the new design
 ///
 /// Features:
-/// - Rounded corners with dark background
-/// - Elevated center wallet button with green plus icon
-/// - Updated navigation labels: Home, My Pickup, Notification, Profile
+/// - Rounded corners with blue background matching app bar
+/// - Elevated center wallet button with wallet icon
+/// - Navigation labels: Dashboard, Transactions, Analytics, Profile
 /// - Maintains existing functionality while updating visual design
 class CustomBottomNavbar extends StatelessWidget {
   final int currentIndex;
@@ -22,38 +22,44 @@ class CustomBottomNavbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2C), // Dark background
-        borderRadius: BorderRadius.circular(30),
+        color: Colors.blue.shade600, // App bar blue background
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
         child: SizedBox(
-          height: 70,
+          height: 80,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Home (Dashboard)
+              // Dashboard
               _buildNavItem(
                 index: 0,
-                icon: Icons.home,
-                label: 'Home',
+                icon: Icons.dashboard,
+                label: 'Dashboard',
                 isSelected: currentIndex == 0,
               ),
 
-              // My Pickup (Transactions)
+              // Transactions
               _buildNavItem(
                 index: 1,
-                icon: Icons.grid_view,
-                label: 'My Pickup',
+                icon: Icons.receipt_long,
+                label: 'Transactions',
                 isSelected: currentIndex == 1,
                 showBadge: uncategorizedCount > 0,
                 badgeCount: uncategorizedCount,
@@ -62,15 +68,15 @@ class CustomBottomNavbar extends StatelessWidget {
               // Center Wallet Button
               _buildCenterWalletButton(),
 
-              // Notification (Analytics)
+              // Analytics
               _buildNavItem(
                 index: 2,
-                icon: Icons.notifications,
-                label: 'Notification',
+                icon: Icons.analytics,
+                label: 'Analytics',
                 isSelected: currentIndex == 2,
               ),
 
-              // Profile (Settings)
+              // Profile
               _buildNavItem(
                 index: 3,
                 icon: Icons.person,
@@ -104,7 +110,7 @@ class CustomBottomNavbar extends StatelessWidget {
                 children: [
                   Icon(
                     icon,
-                    color: isSelected ? const Color(0xFF00E676) : Colors.white,
+                    color: isSelected ? Colors.white : Colors.white70,
                     size: 24,
                   ),
                   // Badge for uncategorized transactions
@@ -139,9 +145,9 @@ class CustomBottomNavbar extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? const Color(0xFF00E676) : Colors.white,
+                  color: isSelected ? Colors.white : Colors.white70,
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
             ],
@@ -156,19 +162,23 @@ class CustomBottomNavbar extends StatelessWidget {
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2C), // Same as navbar background
+        color: Colors.blue.shade600, // Same as navbar background
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.grey.shade300, width: 2),
+        border: Border.all(color: Colors.white, width: 2),
       ),
       child: Container(
         margin: const EdgeInsets.all(4),
         decoration: const BoxDecoration(
-          color: Color(0xFF00E676), // Green background
+          color: Colors.white, // White background
           shape: BoxShape.circle,
         ),
         child: IconButton(
           onPressed: () => onTap(4), // Special index for wallet
-          icon: const Icon(Icons.add, color: Colors.black, size: 28),
+          icon: Icon(
+            Icons.account_balance_wallet,
+            color: Colors.blue.shade600,
+            size: 24,
+          ),
           padding: EdgeInsets.zero,
         ),
       ),

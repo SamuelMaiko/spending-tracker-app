@@ -5,6 +5,7 @@ import 'core/database/database_helper.dart';
 import 'core/database/repositories/wallet_repository.dart';
 import 'core/database/repositories/transaction_repository.dart';
 import 'core/database/repositories/category_repository.dart';
+import 'core/database/repositories/weekly_spending_limit_repository.dart';
 import 'core/services/sms_catchup_service.dart';
 import 'core/services/firestore_service.dart';
 import 'core/services/sync_settings_service.dart';
@@ -47,6 +48,10 @@ Future<void> initializeDependencies() async {
     () => CategoryRepository(sl<AppDatabase>()),
   );
 
+  sl.registerLazySingleton<WeeklySpendingLimitRepository>(
+    () => WeeklySpendingLimitRepository(sl<AppDatabase>()),
+  );
+
   // Services
   sl.registerLazySingleton<SmsTransactionParser>(
     () => SmsTransactionParser(
@@ -69,6 +74,7 @@ Future<void> initializeDependencies() async {
       walletRepository: sl<WalletRepository>(),
       transactionRepository: sl<TransactionRepository>(),
       categoryRepository: sl<CategoryRepository>(),
+      weeklySpendingLimitRepository: sl<WeeklySpendingLimitRepository>(),
     ),
   );
 

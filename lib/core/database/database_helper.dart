@@ -59,13 +59,33 @@ class Transactions extends Table {
       dateTime().named('updated_at').withDefault(currentDateAndTime)();
 }
 
+/// Weekly Spending Limits table - stores weekly spending targets
+class WeeklySpendingLimits extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get weekStart => dateTime().named('week_start')();
+  DateTimeColumn get weekEnd => dateTime().named('week_end')();
+  RealColumn get targetAmount => real().named('target_amount')();
+  DateTimeColumn get createdAt =>
+      dateTime().named('created_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt =>
+      dateTime().named('updated_at').withDefault(currentDateAndTime)();
+}
+
 /// Main database class using Drift ORM
-@DriftDatabase(tables: [Wallets, Categories, CategoryItems, Transactions])
+@DriftDatabase(
+  tables: [
+    Wallets,
+    Categories,
+    CategoryItems,
+    Transactions,
+    WeeklySpendingLimits,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -80,6 +100,10 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'ALTER TABLE transactions ADD COLUMN sms_hash TEXT',
         );
+      }
+      if (from < 3) {
+        // Create weekly_spending_limits table
+        await m.createTable(weeklySpendingLimits);
       }
     },
   );
