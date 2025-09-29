@@ -721,4 +721,51 @@ class FirestoreService {
       return [];
     }
   }
+
+  // USER SETTINGS OPERATIONS
+
+  /// Update a user setting in Firestore
+  static Future<void> updateUserSetting(String key, dynamic value) async {
+    if (!_isAuthenticated || _settingsDocument == null) {
+      developer.log('❌ Cannot update user setting: User not authenticated');
+      return;
+    }
+
+    try {
+      developer.log('📤 Updating user setting: $key = $value');
+      await _settingsDocument!.set({
+        key: value,
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      developer.log('✅ User setting updated successfully');
+    } catch (e) {
+      developer.log('❌ Error updating user setting: $e');
+      rethrow;
+    }
+  }
+
+  /// Get a user setting from Firestore
+  static Future<dynamic> getUserSetting(String key) async {
+    if (!_isAuthenticated || _settingsDocument == null) {
+      developer.log('❌ Cannot get user setting: User not authenticated');
+      return null;
+    }
+
+    try {
+      developer.log('📥 Getting user setting: $key');
+      final doc = await _settingsDocument!.get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>?;
+        final value = data?[key];
+        developer.log('✅ User setting retrieved: $key = $value');
+        return value;
+      } else {
+        developer.log('📝 User settings document does not exist');
+        return null;
+      }
+    } catch (e) {
+      developer.log('❌ Error getting user setting: $e');
+      return null;
+    }
+  }
 }
