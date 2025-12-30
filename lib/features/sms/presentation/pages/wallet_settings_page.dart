@@ -203,6 +203,7 @@ class _WalletSettingsPageState extends State<WalletSettingsPage> {
             ),
           ],
         ),
+        centerTitle: false,
         backgroundColor: Colors.blue.shade600,
         foregroundColor: Colors.white,
         elevation: 0,

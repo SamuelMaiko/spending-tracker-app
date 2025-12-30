@@ -13,12 +13,15 @@ class MultiCategorizationPage extends StatefulWidget {
   const MultiCategorizationPage({super.key});
 
   @override
-  State<MultiCategorizationPage> createState() => _MultiCategorizationPageState();
+  State<MultiCategorizationPage> createState() =>
+      _MultiCategorizationPageState();
 }
 
 class _MultiCategorizationPageState extends State<MultiCategorizationPage> {
-  final MultiCategorizationRepository _multiCatRepository = sl<MultiCategorizationRepository>();
-  final TransactionRepository _transactionRepository = sl<TransactionRepository>();
+  final MultiCategorizationRepository _multiCatRepository =
+      sl<MultiCategorizationRepository>();
+  final TransactionRepository _transactionRepository =
+      sl<TransactionRepository>();
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
 
   List<MultiCategorizationList> _lists = [];
@@ -41,9 +44,9 @@ class _MultiCategorizationPageState extends State<MultiCategorizationPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading lists: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading lists: $e')));
       }
     }
   }
@@ -72,12 +75,16 @@ class _MultiCategorizationPageState extends State<MultiCategorizationPage> {
             onPressed: () async {
               if (nameController.text.trim().isNotEmpty) {
                 try {
-                  await _multiCatRepository.createList(name: nameController.text.trim());
+                  await _multiCatRepository.createList(
+                    name: nameController.text.trim(),
+                  );
                   Navigator.pop(context);
                   await _loadLists();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('List created successfully')),
+                      const SnackBar(
+                        content: Text('List created successfully'),
+                      ),
                     );
                   }
                 } catch (e) {
@@ -127,7 +134,9 @@ class _MultiCategorizationPageState extends State<MultiCategorizationPage> {
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                      padding: const EdgeInsets.all(
+                        AppConstants.defaultPadding,
+                      ),
                       itemCount: _lists.length,
                       itemBuilder: (context, index) {
                         final list = _lists[index];
@@ -135,7 +144,9 @@ class _MultiCategorizationPageState extends State<MultiCategorizationPage> {
                           margin: const EdgeInsets.only(bottom: 12),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: list.isApplied ? Colors.green : Colors.orange,
+                              backgroundColor: list.isApplied
+                                  ? Colors.green
+                                  : Colors.orange,
                               child: Icon(
                                 list.isApplied ? Icons.check : Icons.pending,
                                 color: Colors.white,
@@ -143,15 +154,22 @@ class _MultiCategorizationPageState extends State<MultiCategorizationPage> {
                             ),
                             title: Text(
                               list.name,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             subtitle: Text(
                               list.isApplied ? 'Applied' : 'Pending',
                               style: TextStyle(
-                                color: list.isApplied ? Colors.green : Colors.orange,
+                                color: list.isApplied
+                                    ? Colors.green
+                                    : Colors.orange,
                               ),
                             ),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                            ),
                             onTap: () => _navigateToListDetails(list),
                           ),
                         );
@@ -174,12 +192,16 @@ class MultiCategorizationListPage extends StatefulWidget {
   const MultiCategorizationListPage({super.key, required this.list});
 
   @override
-  State<MultiCategorizationListPage> createState() => _MultiCategorizationListPageState();
+  State<MultiCategorizationListPage> createState() =>
+      _MultiCategorizationListPageState();
 }
 
-class _MultiCategorizationListPageState extends State<MultiCategorizationListPage> {
-  final MultiCategorizationRepository _multiCatRepository = sl<MultiCategorizationRepository>();
-  final TransactionRepository _transactionRepository = sl<TransactionRepository>();
+class _MultiCategorizationListPageState
+    extends State<MultiCategorizationListPage> {
+  final MultiCategorizationRepository _multiCatRepository =
+      sl<MultiCategorizationRepository>();
+  final TransactionRepository _transactionRepository =
+      sl<TransactionRepository>();
   final CategoryRepository _categoryRepository = sl<CategoryRepository>();
 
   List<MultiCategorizationItem> _items = [];
@@ -201,7 +223,7 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
       final items = await _multiCatRepository.getListItems(widget.list.id);
       final transactions = await _transactionRepository.getAllTransactions();
       final categoryItems = await _categoryRepository.getAllCategoryItems();
-      
+
       // Find selected transaction if exists
       Transaction? selectedTx;
       if (widget.list.transactionId != null) {
@@ -211,11 +233,15 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
         );
       }
 
-      final total = await _multiCatRepository.getListTotalAmount(widget.list.id);
+      final total = await _multiCatRepository.getListTotalAmount(
+        widget.list.id,
+      );
 
       setState(() {
         _items = items;
-        _transactions = transactions.where((tx) => tx.categoryItemId == null && tx.type != 'TRANSFER').toList();
+        _transactions = transactions
+            .where((tx) => tx.categoryItemId == null && tx.type != 'TRANSFER')
+            .toList();
         _categoryItems = categoryItems;
         _selectedTransaction = selectedTx;
         _totalAmount = total;
@@ -224,9 +250,9 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
       }
     }
   }
@@ -251,7 +277,10 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
                   if (!widget.list.isApplied) ...[
                     const Text(
                       'Select Transaction',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     // Transaction selection will be implemented here
@@ -264,7 +293,7 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Total amount display
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -312,16 +341,21 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
                           (ci) => ci.id == item.categoryItemId,
                           orElse: () => _categoryItems.first,
                         );
-                        
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             title: Text(categoryItem.name),
-                            subtitle: Text('KSh ${item.amount.toStringAsFixed(2)}'),
+                            subtitle: Text(
+                              'KSh ${item.amount.toStringAsFixed(2)}',
+                            ),
                             trailing: widget.list.isApplied
                                 ? null
                                 : IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
                                     onPressed: () => _deleteItem(item),
                                   ),
                           ),
@@ -340,7 +374,10 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
                   FloatingActionButton.extended(
                     onPressed: _canApply() ? _applyList : null,
                     backgroundColor: _canApply() ? Colors.green : Colors.grey,
-                    label: const Text('Apply', style: TextStyle(color: Colors.white)),
+                    label: const Text(
+                      'Apply',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     icon: const Icon(Icons.check, color: Colors.white),
                   ),
                 const SizedBox(height: 8),
@@ -374,9 +411,9 @@ class _MultiCategorizationListPageState extends State<MultiCategorizationListPag
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting item: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting item: $e')));
       }
     }
   }

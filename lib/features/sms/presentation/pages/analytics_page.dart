@@ -581,12 +581,19 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
       // Calculate current week spending
       final allTransactions = await _transactionRepository.getAllTransactions();
+
+      // Get exclude weekly setting
+      final excludeWeeklySetting =
+          await ExcludeWeeklySettingsService.getEnabled();
+
       final weekTransactions = allTransactions
           .where(
             (t) =>
                 t.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
                 t.date.isBefore(weekEnd.add(const Duration(days: 1))) &&
-                t.type == 'DEBIT',
+                t.type == 'DEBIT' &&
+                // Exclude transactions marked as excludeFromWeekly if setting is enabled
+                (!excludeWeeklySetting || !t.excludeFromWeekly),
           )
           .toList();
 
@@ -700,6 +707,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ),
           ],
         ),
+        centerTitle: false,
         backgroundColor: const Color(0xFF0288D1),
         foregroundColor: Colors.white,
         elevation: 0,
